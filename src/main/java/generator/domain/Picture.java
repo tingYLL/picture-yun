@@ -1,7 +1,9 @@
-package com.jdjm.jdjmpicturebackend.model.entity;
+package generator.domain;
 
-import com.baomidou.mybatisplus.annotation.*;
-
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import java.io.Serializable;
 import java.util.Date;
 import lombok.Data;
@@ -16,7 +18,7 @@ public class Picture implements Serializable {
     /**
      * id
      */
-    @TableId(type = IdType.ASSIGN_ID)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
     /**
@@ -75,6 +77,26 @@ public class Picture implements Serializable {
     private Long userId;
 
     /**
+     * 创建时间
+     */
+    private Date createTime;
+
+    /**
+     * 编辑时间
+     */
+    private Date editTime;
+
+    /**
+     * 更新时间
+     */
+    private Date updateTime;
+
+    /**
+     * 是否删除
+     */
+    private Integer isDelete;
+
+    /**
      * 审核状态：0-待审核; 1-通过; 2-拒绝
      */
     private Integer reviewStatus;
@@ -93,27 +115,6 @@ public class Picture implements Serializable {
      * 审核时间
      */
     private Date reviewTime;
-
-    /**
-     * 创建时间
-     */
-    private Date createTime;
-
-    /**
-     * 编辑时间
-     */
-    private Date editTime;
-
-    /**
-     * 更新时间
-     */
-    private Date updateTime;
-
-    /**
-     * 是否删除
-     */
-    @TableLogic
-    private Integer isDelete;
 
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;
@@ -145,7 +146,11 @@ public class Picture implements Serializable {
             && (this.getCreateTime() == null ? other.getCreateTime() == null : this.getCreateTime().equals(other.getCreateTime()))
             && (this.getEditTime() == null ? other.getEditTime() == null : this.getEditTime().equals(other.getEditTime()))
             && (this.getUpdateTime() == null ? other.getUpdateTime() == null : this.getUpdateTime().equals(other.getUpdateTime()))
-            && (this.getIsDelete() == null ? other.getIsDelete() == null : this.getIsDelete().equals(other.getIsDelete()));
+            && (this.getIsDelete() == null ? other.getIsDelete() == null : this.getIsDelete().equals(other.getIsDelete()))
+            && (this.getReviewStatus() == null ? other.getReviewStatus() == null : this.getReviewStatus().equals(other.getReviewStatus()))
+            && (this.getReviewMessage() == null ? other.getReviewMessage() == null : this.getReviewMessage().equals(other.getReviewMessage()))
+            && (this.getReviewerId() == null ? other.getReviewerId() == null : this.getReviewerId().equals(other.getReviewerId()))
+            && (this.getReviewTime() == null ? other.getReviewTime() == null : this.getReviewTime().equals(other.getReviewTime()));
     }
 
     @Override
@@ -168,6 +173,10 @@ public class Picture implements Serializable {
         result = prime * result + ((getEditTime() == null) ? 0 : getEditTime().hashCode());
         result = prime * result + ((getUpdateTime() == null) ? 0 : getUpdateTime().hashCode());
         result = prime * result + ((getIsDelete() == null) ? 0 : getIsDelete().hashCode());
+        result = prime * result + ((getReviewStatus() == null) ? 0 : getReviewStatus().hashCode());
+        result = prime * result + ((getReviewMessage() == null) ? 0 : getReviewMessage().hashCode());
+        result = prime * result + ((getReviewerId() == null) ? 0 : getReviewerId().hashCode());
+        result = prime * result + ((getReviewTime() == null) ? 0 : getReviewTime().hashCode());
         return result;
     }
 
@@ -193,6 +202,10 @@ public class Picture implements Serializable {
         sb.append(", editTime=").append(editTime);
         sb.append(", updateTime=").append(updateTime);
         sb.append(", isDelete=").append(isDelete);
+        sb.append(", reviewStatus=").append(reviewStatus);
+        sb.append(", reviewMessage=").append(reviewMessage);
+        sb.append(", reviewerId=").append(reviewerId);
+        sb.append(", reviewTime=").append(reviewTime);
         sb.append(", serialVersionUID=").append(serialVersionUID);
         sb.append("]");
         return sb.toString();

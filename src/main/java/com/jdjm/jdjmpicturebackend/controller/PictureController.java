@@ -12,12 +12,10 @@ import com.jdjm.jdjmpicturebackend.constant.UserConstant;
 import com.jdjm.jdjmpicturebackend.exception.BusinessException;
 import com.jdjm.jdjmpicturebackend.exception.ErrorCode;
 import com.jdjm.jdjmpicturebackend.exception.ThrowUtils;
-import com.jdjm.jdjmpicturebackend.model.dto.picture.PictureEditRequest;
-import com.jdjm.jdjmpicturebackend.model.dto.picture.PictureQueryRequest;
-import com.jdjm.jdjmpicturebackend.model.dto.picture.PictureUpdateRequest;
-import com.jdjm.jdjmpicturebackend.model.dto.picture.PictureUploadRequest;
+import com.jdjm.jdjmpicturebackend.model.dto.picture.*;
 import com.jdjm.jdjmpicturebackend.model.entity.Picture;
 import com.jdjm.jdjmpicturebackend.model.entity.User;
+import com.jdjm.jdjmpicturebackend.model.enums.PictureReviewStatusEnum;
 import com.jdjm.jdjmpicturebackend.model.vo.PictureTagCategory;
 import com.jdjm.jdjmpicturebackend.model.vo.PictureVO;
 import com.jdjm.jdjmpicturebackend.service.PictureService;
@@ -46,7 +44,7 @@ public class PictureController {
      * 上传图片（可重新上传）
      */
     @PostMapping("/upload")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+//    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
     public BaseResponse<PictureVO> uploadPicture(
             @RequestPart("file") MultipartFile multipartFile,
             PictureUploadRequest pictureUploadRequest,
@@ -55,6 +53,21 @@ public class PictureController {
         PictureVO pictureVO = pictureService.uploadPicture(multipartFile, pictureUploadRequest, loginUser);
         return ResultUtils.success(pictureVO);
     }
+
+
+    /**
+     * 通过 URL 上传图片（可重新上传）
+     */
+    @PostMapping("/upload/url")
+    public BaseResponse<PictureVO> uploadPictureByUrl(
+            @RequestBody PictureUploadRequest pictureUploadRequest,
+            HttpServletRequest request) {
+        User loginUser = userService.getLoginUser(request);
+        String fileUrl = pictureUploadRequest.getFileUrl();
+        PictureVO pictureVO = pictureService.uploadPicture(fileUrl, pictureUploadRequest, loginUser);
+        return ResultUtils.success(pictureVO);
+    }
+
 
     /**
      * 删除图片
@@ -88,7 +101,7 @@ public class PictureController {
      */
     @PostMapping("/update")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<Boolean> updatePicture(@RequestBody PictureUpdateRequest pictureUpdateRequest) {
+    public BaseResponse<Boolean> updatePicture(@RequestBody PictureUpdateRequest pictureUpdateRequest,HttpServletRequest request) {
         if(pictureUpdateRequest ==null || pictureUpdateRequest.getId() <= 0){
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -102,6 +115,8 @@ public class PictureController {
         Long id = picture.getId();
         Picture oldPicture = pictureService.getById(id);
         ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR);
+        User loginUser = userService.getLoginUser(request);
+        pictureService.fillReviewParams(picture,loginUser);
         //操作数据库
         boolean result = pictureService.updateById(picture);
         return ResultUtils.success(true);
@@ -156,6 +171,8 @@ public class PictureController {
     @PostMapping("/list/page/vo")
     public BaseResponse<Page<PictureVO>> listPictureVOByPage(@RequestBody PictureQueryRequest pictureQueryRequest,
                                                              HttpServletRequest request) {
+        //普通用户默认只能查看到审核通过的数据
+        pictureQueryRequest.setReviewStatus(PictureReviewStatusEnum.PASS.getValue());
         long current = pictureQueryRequest.getCurrent();
         long size = pictureQueryRequest.getPageSize();
         // 限制爬虫
@@ -191,6 +208,7 @@ public class PictureController {
         if(!oldPicture.getUserId().equals(loginUser.getId())&&!userService.isAdmin(loginUser)){
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
         }
+        pictureService.fillReviewParams(picture,loginUser);
         boolean result = pictureService.updateById(picture);
         ThrowUtils.throwIf(!result,ErrorCode.OPERATION_ERROR);
         return ResultUtils.success(true);
@@ -205,6 +223,19 @@ public class PictureController {
         pictureTagCategory.setTagList(tagList);
         pictureTagCategory.setCategoryList(categoryList);
         return ResultUtils.success(pictureTagCategory);
+    }
+
+    /**
+     * 审核图片
+     */
+    @PostMapping("/review")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<Boolean> doPictureReview(@RequestBody PictureReviewRequest pictureReviewRequest,
+                                                 HttpServletRequest request) {
+        ThrowUtils.throwIf(pictureReviewRequest == null, ErrorCode.PARAMS_ERROR);
+        User loginUser = userService.getLoginUser(request);
+        pictureService.doPictureReview(pictureReviewRequest, loginUser);
+        return ResultUtils.success(true);
     }
 
 

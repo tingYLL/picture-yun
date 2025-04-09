@@ -3,6 +3,7 @@ package com.jdjm.jdjmpicturebackend.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jdjm.jdjmpicturebackend.model.dto.picture.PictureQueryRequest;
+import com.jdjm.jdjmpicturebackend.model.dto.picture.PictureReviewRequest;
 import com.jdjm.jdjmpicturebackend.model.dto.picture.PictureUploadRequest;
 import com.jdjm.jdjmpicturebackend.model.entity.Picture;
 import com.baomidou.mybatisplus.extension.service.IService;
@@ -25,7 +26,7 @@ public interface PictureService extends IService<Picture> {
      */
     void validPicture(Picture picture);
 
-    PictureVO uploadPicture (MultipartFile multipartFile, PictureUploadRequest pictureUploadRequest, User loginUser);
+    PictureVO uploadPicture (Object inputSource, PictureUploadRequest pictureUploadRequest, User loginUser);
 
     /**
      * 获取查询对象
@@ -52,4 +53,19 @@ public interface PictureService extends IService<Picture> {
      * @return
      */
     Page<PictureVO> getPictureVOPage(Page<Picture> picturePage, HttpServletRequest request);
+
+    /**
+     * 图片审核
+     *
+     */
+    void doPictureReview(PictureReviewRequest pictureReviewRequest, User loginUser);
+
+
+    /**
+     * 填充审核参数
+     *
+     * @param picture
+     * @param loginUser
+     */
+    void fillReviewParams(Picture picture, User loginUser);
 }

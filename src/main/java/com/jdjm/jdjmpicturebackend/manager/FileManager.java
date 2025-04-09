@@ -26,6 +26,7 @@ import java.util.List;
  * 文件服务
  * @deprecated 已废弃，改为使用 upload 包的模板方法优化
  */
+@Deprecated
 @Slf4j
 @Service
 public class FileManager {
@@ -49,7 +50,7 @@ public class FileManager {
         // 图片上传地址
         String uuid = RandomUtil.randomString(16);
         String originalFilename = multipartFile.getOriginalFilename();
-        // 自己拼接文件上传路径，而不是使用原始文件名称，可以增强安全性
+        // 自己拼接文件上传路径，而不是使用原始文件名称，可以增强安全性,如? &这些文件名如果出现在url中，可能无法被识别导致无法访问图片
         String uploadFilename = String.format("%s_%s.%s", DateUtil.formatDate(new Date()), uuid,
                 FileUtil.getSuffix(originalFilename));
         String uploadPath = String.format("/%s/%s", uploadPathPrefix, uploadFilename);

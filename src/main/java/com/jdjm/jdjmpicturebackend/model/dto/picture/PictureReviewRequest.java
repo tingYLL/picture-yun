@@ -3,13 +3,14 @@ package com.jdjm.jdjmpicturebackend.model.dto.picture;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.util.Date;
 import java.util.List;
 
 /**
- * 图片更新请求
+ * 图片审核请求
  */
 @Data
-public class PictureUpdateRequest implements Serializable {
+public class PictureReviewRequest implements Serializable {
 
     /**
      * id
@@ -38,4 +39,14 @@ public class PictureUpdateRequest implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    /**
+     * 审核状态：0-待审核; 1-通过; 2-拒绝
+     */
+    private Integer reviewStatus;
+
+    /**
+     * 审核信息
+     */
+    private String reviewMessage;
+    
 }
