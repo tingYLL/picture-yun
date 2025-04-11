@@ -3,6 +3,8 @@ server:
   servlet:
     context-path: /api
 spring:
+#  profiles:
+#    active: local
   application:
     name: jdjm-picture-backend
   datasource:
@@ -10,6 +12,12 @@ spring:
     url: jdbc:mysql://localhost:3306/bear_picture
     username: root
     password: root
+  #Redis配置
+  redis:
+    database: 0
+    host: 127.0.0.1
+    port: 6379
+    timeout: 5000
   servlet:
     multipart:
       max-file-size: 10MB
