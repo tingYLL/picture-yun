@@ -108,6 +108,7 @@ public class PictureVO implements Serializable {
      */
     private UserVO user;
 
+
     /**
      * 权限列表
      */

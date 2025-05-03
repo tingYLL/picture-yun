@@ -10,6 +10,7 @@ import com.jdjm.jdjmpicturebackend.exception.BusinessException;
 import com.jdjm.jdjmpicturebackend.exception.ErrorCode;
 import com.jdjm.jdjmpicturebackend.manager.CosManager;
 import com.jdjm.jdjmpicturebackend.model.dto.file.UploadPictureResult;
+import com.jdjm.jdjmpicturebackend.model.entity.User;
 import com.qcloud.cos.model.PutObjectResult;
 import com.qcloud.cos.model.ciModel.persistence.CIObject;
 import com.qcloud.cos.model.ciModel.persistence.ImageInfo;
@@ -40,9 +41,9 @@ public abstract class PictureUploadTemplate {
      * @param uploadPathPrefix 上传路径前缀
      * @return
      */
-    public UploadPictureResult uploadPicture(Object inputSource, String uploadPathPrefix) {
+    public UploadPictureResult uploadPicture(Object inputSource, String uploadPathPrefix, User loginUser) {
         // 1. 校验图片
-        validPicture(inputSource);
+        validPicture(inputSource,loginUser);
         // 2. 图片上传地址
         String uuid = RandomUtil.randomString(16);
         String originalFilename = getOriginFilename(inputSource);
@@ -89,7 +90,7 @@ public abstract class PictureUploadTemplate {
     /**
      * 校验输入源（本地文件或 URL）
      */
-    protected abstract void validPicture(Object inputSource);
+    protected abstract void validPicture(Object inputSource,User loginUser);
 
     /**
      * 获取输入源的原始文件名

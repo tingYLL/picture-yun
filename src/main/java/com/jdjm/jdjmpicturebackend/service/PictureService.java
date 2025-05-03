@@ -2,10 +2,7 @@ package com.jdjm.jdjmpicturebackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.jdjm.jdjmpicturebackend.model.dto.picture.PictureQueryRequest;
-import com.jdjm.jdjmpicturebackend.model.dto.picture.PictureReviewRequest;
-import com.jdjm.jdjmpicturebackend.model.dto.picture.PictureUploadByBatchRequest;
-import com.jdjm.jdjmpicturebackend.model.dto.picture.PictureUploadRequest;
+import com.jdjm.jdjmpicturebackend.model.dto.picture.*;
 import com.jdjm.jdjmpicturebackend.model.entity.Picture;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.jdjm.jdjmpicturebackend.model.entity.User;
@@ -66,6 +63,14 @@ public interface PictureService extends IService<Picture> {
     Page<PictureVO> getPictureVOPage(Page<Picture> picturePage, HttpServletRequest request);
 
     /**
+     * 编辑图片
+     *
+     * @param pictureEditRequest
+     * @param loginUser
+     */
+    void editPicture(PictureEditRequest pictureEditRequest, User loginUser);
+
+    /**
      * 图片审核
      *
      */
@@ -79,4 +84,27 @@ public interface PictureService extends IService<Picture> {
      * @param loginUser
      */
     void fillReviewParams(Picture picture, User loginUser);
+
+    /**
+     * 校验空间图片的权限
+     *
+     * @param loginUser
+     * @param picture
+     */
+    void checkPictureAuth(User loginUser, Picture picture);
+
+    /**
+     * 删除图片
+     *
+     * @param pictureId
+     * @param loginUser
+     */
+    void deletePicture(long pictureId, User loginUser);
+
+    /**
+     * 清理图片文件
+     *
+     * @param oldPicture
+     */
+    void clearPictureFile(Picture oldPicture);
 }

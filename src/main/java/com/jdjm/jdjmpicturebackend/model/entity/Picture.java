@@ -25,6 +25,11 @@ public class Picture implements Serializable {
     private String url;
 
     /**
+     * 缩略图 url
+     */
+    private String thumbnailUrl;
+
+    /**
      * 图片名称
      */
     private String name;
@@ -73,6 +78,11 @@ public class Picture implements Serializable {
      * 创建用户 id
      */
     private Long userId;
+
+    /**
+     * 空间 id
+     */
+    private Long spaceId;
 
     /**
      * 审核状态：0-待审核; 1-通过; 2-拒绝

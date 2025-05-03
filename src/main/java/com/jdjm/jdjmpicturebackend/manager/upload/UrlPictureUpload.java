@@ -9,8 +9,11 @@ import cn.hutool.http.Method;
 import com.jdjm.jdjmpicturebackend.exception.BusinessException;
 import com.jdjm.jdjmpicturebackend.exception.ErrorCode;
 import com.jdjm.jdjmpicturebackend.exception.ThrowUtils;
+import com.jdjm.jdjmpicturebackend.model.entity.User;
+import com.jdjm.jdjmpicturebackend.service.UserService;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.Resource;
 import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -23,8 +26,11 @@ import java.util.List;
 @Service
 public class UrlPictureUpload extends PictureUploadTemplate {
 
+    @Resource
+    private UserService userService;
+
     @Override
-    protected void validPicture(Object inputSource) {
+    protected void validPicture(Object inputSource, User loginUser) {
         String fileUrl = (String) inputSource;
         // 1. 校验非空
         ThrowUtils.throwIf(StrUtil.isBlank(fileUrl), ErrorCode.PARAMS_ERROR, "文件地址为空");
@@ -63,7 +69,11 @@ public class UrlPictureUpload extends PictureUploadTemplate {
                 try {
                     long contentLength = Long.parseLong(contentLengthStr);
                     final long ONE_M = 1024 * 1024;
-                    ThrowUtils.throwIf(contentLength > 2 * ONE_M, ErrorCode.PARAMS_ERROR, "文件大小不能超过 2MB");
+                    if(userService.isAdmin(loginUser)){
+                        ThrowUtils.throwIf(contentLength > 5 * ONE_M, ErrorCode.PARAMS_ERROR, "管理员上传的文件大小不能超过 5MB");
+                    }else{
+                        ThrowUtils.throwIf(contentLength > 2 * ONE_M, ErrorCode.PARAMS_ERROR, "文件大小不能超过 2MB");
+                    }
                 } catch (NumberFormatException e) {
                     throw new BusinessException(ErrorCode.PARAMS_ERROR, "文件大小格式异常");
                 }
