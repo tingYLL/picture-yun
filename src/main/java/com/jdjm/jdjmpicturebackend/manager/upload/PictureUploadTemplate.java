@@ -84,7 +84,6 @@ public abstract class PictureUploadTemplate {
             // 6. 临时文件清理
             this.deleteTempFile(file);
         }
-
     }
 
     /**
