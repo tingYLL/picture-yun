@@ -21,6 +21,33 @@ spring:
   servlet:
     multipart:
       max-file-size: 10MB
+  # 空间图片分表
+  shardingsphere:
+    datasource:
+      names: bear_picture
+      bear_picture:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        url: jdbc:mysql://localhost:3306/bear_picture
+        username: root
+        password: root
+    rules:
+      sharding:
+        tables:
+          picture:
+            actual-data-nodes: bear_picture.picture # 动态分表,如果是静态分表actual-data-nodes 这一项可以写成 bear_picture.picture{0..2}这种形式
+            table-strategy:
+              standard:
+                sharding-column: spaceId
+                sharding-algorithm-name: picture_sharding_algorithm  # 使用自定义分片算法
+        sharding-algorithms:
+          picture_sharding_algorithm:
+            type: CLASS_BASED
+            props:
+              strategy: standard
+              algorithmClassName: com.jdjm.jdjmpicturebackend.manager.sharding.PictureShardingAlgorithm
+    props:
+      sql-show: true
 mybatis-plus:
   configuration:
     # MyBatis 配置

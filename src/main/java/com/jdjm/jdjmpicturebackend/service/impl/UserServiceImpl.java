@@ -9,6 +9,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.jdjm.jdjmpicturebackend.constant.UserConstant;
 import com.jdjm.jdjmpicturebackend.exception.BusinessException;
 import com.jdjm.jdjmpicturebackend.exception.ErrorCode;
+import com.jdjm.jdjmpicturebackend.manager.auth.StpKit;
 import com.jdjm.jdjmpicturebackend.model.dto.user.UserQueryRequest;
 import com.jdjm.jdjmpicturebackend.model.entity.User;
 import com.jdjm.jdjmpicturebackend.model.enums.UserRoleEnum;
@@ -117,6 +118,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         }
         // 4. 保存用户的登录态
         request.getSession().setAttribute(UserConstant.USER_LOGIN_STATE, user);
+        //记录用户登录态到Sa-token.便于空间鉴权时使用
+        StpKit.SPACE.login(user.getId());
+        StpKit.SPACE.getSession().set(UserConstant.USER_LOGIN_STATE, user);
         return this.getLoginUserVO(user);
     }
 

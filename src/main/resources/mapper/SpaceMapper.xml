@@ -7,6 +7,7 @@
     <resultMap id="BaseResultMap" type="com.jdjm.jdjmpicturebackend.model.entity.Space">
             <id property="id" column="id" jdbcType="BIGINT"/>
             <result property="spaceName" column="spaceName" jdbcType="VARCHAR"/>
+            <result property="spaceType" column="spaceType" jdbcType="INTEGER"/>
             <result property="spaceLevel" column="spaceLevel" jdbcType="INTEGER"/>
             <result property="maxSize" column="maxSize" jdbcType="BIGINT"/>
             <result property="maxCount" column="maxCount" jdbcType="BIGINT"/>
@@ -20,7 +21,7 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,spaceName,spaceLevel,
+        id,spaceName,spaceType，spaceLevel,
         maxSize,maxCount,totalSize,
         totalCount,userId,createTime,
         editTime,updateTime,isDelete

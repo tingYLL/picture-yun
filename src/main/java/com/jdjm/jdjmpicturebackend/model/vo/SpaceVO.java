@@ -83,7 +83,7 @@ public class SpaceVO implements Serializable {
     private UserVO user;
 
     /**
-     * 权限列表
+     * 权限列表，前端依据权限列表判断用户是否有权限操作空间，没有权限则不展示对应的按钮
      */
     private List<String> permissionList = new ArrayList<>();
 

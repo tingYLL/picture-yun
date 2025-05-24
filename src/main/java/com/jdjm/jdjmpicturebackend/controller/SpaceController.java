@@ -14,6 +14,7 @@ import com.jdjm.jdjmpicturebackend.constant.UserConstant;
 import com.jdjm.jdjmpicturebackend.exception.BusinessException;
 import com.jdjm.jdjmpicturebackend.exception.ErrorCode;
 import com.jdjm.jdjmpicturebackend.exception.ThrowUtils;
+import com.jdjm.jdjmpicturebackend.manager.auth.SpaceUserAuthManager;
 import com.jdjm.jdjmpicturebackend.model.dto.space.*;
 import com.jdjm.jdjmpicturebackend.model.entity.Space;
 import com.jdjm.jdjmpicturebackend.model.entity.User;
@@ -50,6 +51,8 @@ public class SpaceController {
 
     @Resource
     private SpaceService spaceService;
+    @Resource
+    private SpaceUserAuthManager spaceUserAuthManager;
 
 
     @PostMapping("/add")
@@ -134,9 +137,9 @@ public class SpaceController {
         Space space = spaceService.getById(id);
         ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR);
         SpaceVO spaceVO = spaceService.getSpaceVO(space, request);
-//        User loginUser = userService.getLoginUser(request);
-//        List<String> permissionList = spaceUserAuthManager.getPermissionList(space, loginUser);
-//        spaceVO.setPermissionList(permissionList);
+        User loginUser = userService.getLoginUser(request);
+        List<String> permissionList = spaceUserAuthManager.getPermissionList(space, loginUser);
+        spaceVO.setPermissionList(permissionList);
         // 获取封装类
         return ResultUtils.success(spaceVO);
     }
