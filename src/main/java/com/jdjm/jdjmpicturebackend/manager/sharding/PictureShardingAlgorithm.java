@@ -18,7 +18,7 @@ public class PictureShardingAlgorithm implements StandardShardingAlgorithm<Long>
         Long spaceId = preciseShardingValue.getValue();
         //逻辑表，即没有分表之前查询的那张表，本项目中是picture表
         String logicTableName = preciseShardingValue.getLogicTableName();
-        // spaceId 为 null 表示查询所有图片,返回 picture 表，最终执行select * from picture
+        // spaceId 为 null 会查所有的表
         if (spaceId == null) {
             return logicTableName;
         }
