@@ -195,6 +195,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "未登录");
         }
         // 移除登录态
+        User loginUser = this.getLoginUser(request);
+        StpKit.SPACE.logout(loginUser.getId());
         request.getSession().removeAttribute(UserConstant.USER_LOGIN_STATE);
         return true;
     }

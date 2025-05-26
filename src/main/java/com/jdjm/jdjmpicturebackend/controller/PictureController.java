@@ -45,6 +45,7 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -194,7 +195,20 @@ public class PictureController {
             space = spaceService.getById(spaceId);
             ThrowUtils.throwIf(space == null,ErrorCode.NOT_FOUND_ERROR,"空间不存在");
         }
-        List<String> permissionList = spaceUserAuthManager.getPermissionList(space, userService.getLoginUser(request));
+        User loginUser = userService.getLoginUser(request);
+//        List<String> permissionList = spaceUserAuthManager.getPermissionList(space,loginUser);
+//        if (picture.getUserId().equals(loginUser.getId())) {
+//            permissionList.add(SpaceUserPermissionConstant.PICTURE_EDIT);
+//        }
+        // 将 permissionList 转换为可变的 ArrayList
+        List<String> permissionList = new ArrayList<>(
+                spaceUserAuthManager.getPermissionList(space, loginUser)
+        );
+
+        if (picture.getUserId().equals(loginUser.getId())) {
+            permissionList.add(SpaceUserPermissionConstant.PICTURE_EDIT);
+            permissionList.add(SpaceUserPermissionConstant.PICTURE_DELETE);
+        }
         PictureVO pictureVO = pictureService.getPictureVO(picture,request);
         pictureVO.setPermissionList(permissionList);
         // 获取封装类
@@ -226,7 +240,7 @@ public class PictureController {
         long current = pictureQueryRequest.getCurrent();
         long size = pictureQueryRequest.getPageSize();
         // 限制爬虫
-        ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR);
+        ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR,"达咩！禁止爬虫！");
         Long spaceId = pictureQueryRequest.getSpaceId();
         //如果spaceId 为空 ，只能查看公共图库
         if(spaceId == null){
