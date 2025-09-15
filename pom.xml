@@ -109,6 +109,17 @@
             <artifactId>shardingsphere-jdbc-core-spring-boot-starter</artifactId>
             <version>5.2.0</version>
         </dependency>
+        <!--minio oss服务-->
+        <dependency>
+            <groupId>io.minio</groupId>
+            <artifactId>minio</artifactId>
+            <version>8.5.12</version>
+        </dependency>
+        <dependency>
+            <groupId>com.huaweicloud.sdk</groupId>
+            <artifactId>huaweicloud-sdk-bss</artifactId>
+            <version>3.1.163</version>
+        </dependency>
     </dependencies>
     <dependencyManagement>
         <dependencies>
@@ -147,7 +158,7 @@
                 <version>${spring-boot.version}</version>
                 <configuration>
                     <mainClass>com.jdjm.jdjmpicturebackend.JdjmPictureBackendApplication</mainClass>
-                    <skip>true</skip>
+<!--                    <skip>true</skip>-->
                 </configuration>
                 <executions>
                     <execution>

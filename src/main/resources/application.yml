@@ -9,7 +9,7 @@ spring:
     name: jdjm-picture-backend
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/bear_picture
+    url: jdbc:mysql://localhost:3306/bear_picture_test
     username: root
     password: root
   #Redis配置
@@ -60,6 +60,7 @@ mybatis-plus:
       logic-delete-value: 1
       logic-not-delete-value: 0
     enable-sql-runner: true
+#访问路径 /api/doc.html
 knife4j:
   enable: true
   openapi:
@@ -73,6 +74,15 @@ knife4j:
         api-rule: package
         api-rule-resources:
           - com.jdjm.jdjmpicturebackend.controller
+
+#本机存储路径
+image:
+#  是否开启本机存储
+  local:
+    enable: true
+  upload:
+    dir: D:\pictures
+
 ## 对象存储配置（需要从腾讯云获取）
 #cos:
 #  client:

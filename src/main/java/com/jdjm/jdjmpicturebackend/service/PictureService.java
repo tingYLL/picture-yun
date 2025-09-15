@@ -26,6 +26,8 @@ public interface PictureService extends IService<Picture> {
      */
     void validPicture(Picture picture);
 
+    PictureVO uploadLocal(MultipartFile multipartFile, PictureUploadRequest pictureUploadRequest, User loginUser);
+
     PictureVO uploadPicture (Object inputSource, PictureUploadRequest pictureUploadRequest, User loginUser);
 
     /**

@@ -2,7 +2,10 @@ package com.jdjm.jdjmpicturebackend.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.date.DateUtil;
+import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.ObjUtil;
+import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -40,6 +43,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -48,7 +52,9 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.awt.*;
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -87,6 +93,9 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
     @Resource
     private AliYunAiApi aliYunAiApi;
 
+    @Value("${image.upload.dir}")
+    private String uploadDir; // 注入配置的上传目录
+
     @Override
     public void validPicture(Picture picture) {
         ThrowUtils.throwIf(picture == null, ErrorCode.PARAMS_ERROR);
@@ -103,6 +112,137 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         if (StrUtil.isNotBlank(introduction)) {
             ThrowUtils.throwIf(introduction.length() > 800, ErrorCode.PARAMS_ERROR, "简介过长");
         }
+    }
+
+    @Override
+    public PictureVO uploadLocal(MultipartFile multipartFile, PictureUploadRequest pictureUploadRequest, User loginUser) {
+        //校验参数
+        ThrowUtils.throwIf(loginUser == null, ErrorCode.NO_AUTH_ERROR);
+        // 校验空间是否存在
+        Long spaceId = pictureUploadRequest.getSpaceId();
+        if (spaceId != null) {
+            Space space = spaceService.getById(spaceId);
+            ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
+//            // 校验是否有空间的权限，仅空间管理员才能上传
+//            if (!loginUser.getId().equals(space.getUserId())) {
+//                throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "没有空间权限");
+//            }
+            //校验额度
+            if (space.getTotalCount() >= space.getMaxCount()) {
+                throw new BusinessException(ErrorCode.OPERATION_ERROR, "空间条数不足");
+            }
+            if (space.getTotalSize() >= space.getMaxSize()) {
+                throw new BusinessException(ErrorCode.OPERATION_ERROR, "空间大小不足");
+            }
+        }
+        //判断是新增还是删除
+        Long pictureId = null;
+        if(pictureUploadRequest !=null){
+            pictureId = pictureUploadRequest.getId();
+        }
+        //如果是更新，先判断图片是否存在
+        if(pictureId != null){
+            Picture oldPicture = this.getById(pictureId);
+            ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR,"图片不存在");
+            //仅图片创建者本人或管理员可编辑图片
+//            if(!oldPicture.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)){
+//                throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
+//            }
+            // 校验空间是否一致
+            // 没传 spaceId，则复用原有图片的 spaceId（这样也兼容了公共图库）
+            if (spaceId == null) {
+                if (oldPicture.getSpaceId() != null) {
+                    spaceId = oldPicture.getSpaceId();
+                }
+            } else {
+                // 传了 spaceId，必须和原图片的空间 id 一致
+                if (ObjUtil.notEqual(spaceId, oldPicture.getSpaceId())) {
+                    throw new BusinessException(ErrorCode.PARAMS_ERROR, "空间 id 不一致");
+                }
+            }
+        }
+        //上传图片
+        // 按照用户 id 划分目录 => 按照空间划分目录
+        String uploadPathPrefix;
+        if (spaceId == null) {
+            // 公共图库
+            uploadPathPrefix = String.format("public/%s", loginUser.getId());
+        } else {
+            // 空间
+            uploadPathPrefix = String.format("space/%s", spaceId);
+        }
+
+        //校验图片
+        ThrowUtils.throwIf(multipartFile == null, ErrorCode.PARAMS_ERROR, "文件不能为空");
+        // 1. 校验文件大小
+        long fileSize = multipartFile.getSize();
+        final long ONE_M = 1024 * 1024;
+        if(userService.isAdmin(loginUser)){
+            ThrowUtils.throwIf(fileSize > 5 * ONE_M, ErrorCode.PARAMS_ERROR, "管理员上传的文件大小不能超过 5MB");
+        }else{
+            ThrowUtils.throwIf(fileSize > 2 * ONE_M, ErrorCode.PARAMS_ERROR, "文件大小不能超过 2MB");
+        }
+        // 2. 校验文件后缀
+        String fileSuffix = FileUtil.getSuffix(multipartFile.getOriginalFilename());
+        // 允许上传的文件后缀列表（或者集合）
+        final List<String> ALLOW_FORMAT_LIST = Arrays.asList("jpeg", "png", "jpg", "webp");
+        ThrowUtils.throwIf(!ALLOW_FORMAT_LIST.contains(fileSuffix), ErrorCode.PARAMS_ERROR, "文件类型错误");
+
+        File destFile;
+        String uploadPath;
+        String originalFilename;
+        try{
+            //拼接图片上传地址
+            String uuid = RandomUtil.randomString(16);
+            originalFilename = multipartFile.getOriginalFilename();
+            // 为避免用户上传图片的名称中带有特殊字符，如 & ? 引起浏览器url解析异常
+            // 转换文件上传路径，而不是使用原始文件名称，增强安全性
+            String uploadFilename = String.format("%s_%s.%s", DateUtil.formatDate(new Date()), uuid,
+                    FileUtil.getSuffix(originalFilename));
+             uploadPath = String.format("/%s/%s", uploadPathPrefix, uploadFilename);
+            destFile = new File(Paths.get(uploadDir, uploadPath).toString());
+
+            // 确保目录存在
+            if (!destFile.getParentFile().exists()) {
+                destFile.getParentFile().mkdirs();
+            }
+
+            // 保存文件
+            multipartFile.transferTo(destFile);
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new BusinessException(ErrorCode.OPERATION_ERROR,"文件上传失败");
+        }
+        //构造要入库的图片信息
+        Picture picture = new Picture();
+        picture.setName(originalFilename);
+        picture.setSpaceId(spaceId); //指定空间id
+        picture.setUrl("/images"+uploadPath);
+        picture.setUserId(loginUser.getId());
+        picture.setPicSize(multipartFile.getSize());
+
+        //补充审核参数
+        fillReviewParams(picture,loginUser);
+        //操作数据库
+        if(pictureId != null){
+            picture.setId(pictureId);
+            picture.setEditTime(new Date());
+        }
+        Long finalSpaceId = spaceId;
+        transactionTemplate.execute(status -> {
+            boolean result =this.saveOrUpdate(picture);
+            ThrowUtils.throwIf(!result,ErrorCode.OPERATION_ERROR,"图片上传失败，数据库操作失败");
+            if(finalSpaceId !=null){
+                boolean update = spaceService.lambdaUpdate()
+                        .eq(Space::getId, finalSpaceId)
+                        .setSql("totalCount = totalCount + 1")
+                        .setSql("totalSize = totalSize + " + picture.getPicSize())
+                        .update();
+                ThrowUtils.throwIf(!update,ErrorCode.OPERATION_ERROR,"额度更新失败" );
+            }
+            return picture;
+        });
+        return  PictureVO.objToVo(picture);
     }
 
     @Override
@@ -330,7 +470,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         queryWrapper.lt(ObjUtil.isNotEmpty(endEditTime), "editTime", endEditTime);
         // JSON 数组查询
         if (CollUtil.isNotEmpty(tags)) {
-            /* and (tag like "%\"Java\"%" and like "%\"Python\"%") */
+//            多次调用like会默认以AND连接   最终生成条件 and tags like '%"Java"%' and  tags like '%"Python"%'
             for (String tag : tags) {
                 queryWrapper.like("tags", "\"" + tag + "\"");
             }

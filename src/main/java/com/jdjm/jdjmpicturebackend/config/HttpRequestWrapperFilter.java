@@ -11,7 +11,7 @@ import java.io.IOException;
 
 /**
  * 请求包装过滤器
- *
+ * HtppServletRequest 的body值是个流，只支持读取一次，所以需要包装一下
  * @author pine
  */
 @Order(1)

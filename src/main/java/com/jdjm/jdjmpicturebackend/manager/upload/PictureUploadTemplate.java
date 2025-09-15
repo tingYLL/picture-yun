@@ -16,7 +16,6 @@ import com.qcloud.cos.model.ciModel.persistence.CIObject;
 import com.qcloud.cos.model.ciModel.persistence.ImageInfo;
 import com.qcloud.cos.model.ciModel.persistence.ProcessResults;
 import lombok.extern.slf4j.Slf4j;
-
 import javax.annotation.Resource;
 import java.io.File;
 import java.util.Date;

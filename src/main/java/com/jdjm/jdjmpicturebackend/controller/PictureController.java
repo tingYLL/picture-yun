@@ -36,6 +36,7 @@ import com.jdjm.jdjmpicturebackend.service.PictureService;
 import com.jdjm.jdjmpicturebackend.service.SpaceService;
 import com.jdjm.jdjmpicturebackend.service.UserService;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.util.DigestUtils;
@@ -50,6 +51,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/picture")
@@ -73,6 +75,13 @@ public class PictureController {
     @Resource
     private SpaceUserAuthManager spaceUserAuthManager;
 
+    @Value("${image.local.enable}")
+    private Boolean isLocalStore;
+    @Value("${server.port}")
+    private String port;
+    @Value("${server.servlet.context-path}")
+    private String contextPath;
+
     /**
      * 本地缓存
      */
@@ -94,7 +103,10 @@ public class PictureController {
             PictureUploadRequest pictureUploadRequest,
             HttpServletRequest request) {
         User loginUser = userService.getLoginUser(request);
-        PictureVO pictureVO = pictureService.uploadPicture(multipartFile, pictureUploadRequest, loginUser);
+//        腾讯云cos存储
+//        PictureVO pictureVO = pictureService.uploadPicture(multipartFile, pictureUploadRequest, loginUser);
+//        本地存储
+        PictureVO pictureVO = pictureService.uploadLocal(multipartFile, pictureUploadRequest, loginUser);
         return ResultUtils.success(pictureVO);
     }
 
@@ -169,6 +181,9 @@ public class PictureController {
         // 查询数据库
         Picture picture = pictureService.getById(id);
         ThrowUtils.throwIf(picture == null, ErrorCode.NOT_FOUND_ERROR);
+        if (isLocalStore) {
+                picture.setUrl("http://localhost:"+port+contextPath+picture.getUrl());
+        }
         // 获取封装类
         return ResultUtils.success(picture);
     }
@@ -227,6 +242,12 @@ public class PictureController {
         // 查询数据库
         Page<Picture> picturePage = pictureService.page(new Page<>(current, size),
                 pictureService.getQueryWrapper(pictureQueryRequest));
+        List<Picture> pictureList = picturePage.getRecords();
+        if (isLocalStore) {
+            for (Picture picture : pictureList) {
+                picture.setUrl("http://localhost:"+port+contextPath+picture.getUrl());
+            }
+        }
         return ResultUtils.success(picturePage);
     }
 
@@ -240,7 +261,7 @@ public class PictureController {
         long current = pictureQueryRequest.getCurrent();
         long size = pictureQueryRequest.getPageSize();
         // 限制爬虫
-        ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR,"达咩！禁止爬虫！");
+        ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR,"访问量过大！");
         Long spaceId = pictureQueryRequest.getSpaceId();
         //如果spaceId 为空 ，只能查看公共图库
         if(spaceId == null){
