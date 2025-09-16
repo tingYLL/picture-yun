@@ -3,6 +3,7 @@ package com.jdjm.jdjmpicturebackend.model.entity;
 import com.baomidou.mybatisplus.annotation.*;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.util.Date;
 import lombok.Data;
 
@@ -77,6 +78,56 @@ public class Picture implements Serializable {
      * 图片主色调
      */
     private String picColor;
+
+    /**
+     * 分类 ID
+     */
+    private Long categoryId;
+
+    /**
+     * 资源状态（0-存在 COS, 1-不存在 COS）
+     */
+    private Integer resourceStatus;
+
+    /**
+     * 查看数量
+     */
+    private Integer viewQuantity;
+
+    /**
+     * 点赞数量
+     */
+    private Integer likeQuantity;
+
+    /**
+     * 收藏数量
+     */
+    private Integer collectQuantity;
+
+    /**
+     * 下载数量
+     */
+    private Integer downloadQuantity;
+
+    /**
+     * 分享数量
+     */
+    private Integer shareQuantity;
+
+    /**
+     * 是否分享（0-分享, 1-不分享）
+     */
+    private Integer isShare;
+
+    /**
+     * 扩图状态（0-普通图片, 1-扩图图片, 2-扩图成功后的图片）
+     */
+    private Integer expandStatus;
+
+    /**
+     * 推荐综合得分
+     */
+    private BigDecimal recommendScore;
 
     /**
      * 创建用户 id

@@ -116,3 +116,15 @@ create table if not exists space_user
     INDEX idx_spaceId (spaceId),                    -- 提升按空间查询的性能
     INDEX idx_userId (userId)                       -- 提升按用户查询的性能
 ) comment '空间用户关联' collate = utf8mb4_unicode_ci;
+
+ALTER TABLE picture
+    ADD COLUMN categoryId       bigint null comment '分类 ID',
+    ADD COLUMN resourceStatus   tinyint        default 0                 not null comment '资源状态（0-存在 COS, 1-不存在 COS）',
+    ADD COLUMN viewQuantity     int            default 0                 not null comment '查看数量',
+    ADD COLUMN likeQuantity     int            default 0                 not null comment '点赞数量',
+    ADD COLUMN collectQuantity  int            default 0                 not null comment '收藏数量',
+    ADD COLUMN downloadQuantity int            default 0                 not null comment '下载数量',
+    ADD COLUMN shareQuantity    int            default 0                 not null comment '分享数量',
+    ADD COLUMN isShare          tinyint        default 0                 not null comment '是否分享（0-分享, 1-不分享）',
+    ADD COLUMN expandStatus     tinyint        default 0                 not null comment '扩图状态（0-普通图片, 1-扩图图片, 2-扩图成功后的图片）',
+    ADD COLUMN recommendScore   decimal(10, 4) default 0.0000            not null comment '推荐综合得分';

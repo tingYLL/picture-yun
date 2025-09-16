@@ -190,43 +190,13 @@ public class PictureController {
 
     /**
      * 根据 id 获取图片（封装类）
-     * 这个接口不使用@SaSpaceCheckPermission进行校验，原因是因为获取公共图库的图片信息是不需要登录的，如果加了sa-token的权限校验注解，它会要求先登录
-     * 故改为编程式权限校验
+     * 获取公共图库的图片信息无需登录 该接口考虑不使用@SaSpaceCheckPermission进行校验 改为编程式权限校验
+     * @param id  图片id
      */
     @GetMapping("/get/vo")
     public BaseResponse<PictureVO> getPictureVOById(long id, HttpServletRequest request) {
         ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
-        // 查询数据库
-        Picture picture = pictureService.getById(id);
-        ThrowUtils.throwIf(picture == null, ErrorCode.NOT_FOUND_ERROR);
-        Long spaceId = picture.getSpaceId();
-        Space space = null;
-        //校验权限
-        if(spaceId != null){
-            boolean hasPermission = StpKit.SPACE.hasPermission(SpaceUserPermissionConstant.PICTURE_VIEW);
-            ThrowUtils.throwIf(!hasPermission,ErrorCode.NO_AUTH_ERROR);
-            //已经改为sa-token鉴权
-//            pictureService.checkPictureAuth(userService.getLoginUser(request),picture);
-            space = spaceService.getById(spaceId);
-            ThrowUtils.throwIf(space == null,ErrorCode.NOT_FOUND_ERROR,"空间不存在");
-        }
-        User loginUser = userService.getLoginUser(request);
-//        List<String> permissionList = spaceUserAuthManager.getPermissionList(space,loginUser);
-//        if (picture.getUserId().equals(loginUser.getId())) {
-//            permissionList.add(SpaceUserPermissionConstant.PICTURE_EDIT);
-//        }
-        // 将 permissionList 转换为可变的 ArrayList
-        List<String> permissionList = new ArrayList<>(
-                spaceUserAuthManager.getPermissionList(space, loginUser)
-        );
-
-        if (picture.getUserId().equals(loginUser.getId())) {
-            permissionList.add(SpaceUserPermissionConstant.PICTURE_EDIT);
-            permissionList.add(SpaceUserPermissionConstant.PICTURE_DELETE);
-        }
-        PictureVO pictureVO = pictureService.getPictureVO(picture,request);
-        pictureVO.setPermissionList(permissionList);
-        // 获取封装类
+        PictureVO pictureVO = pictureService.getPictureDetailById(id,request);
         return ResultUtils.success(pictureVO);
     }
 

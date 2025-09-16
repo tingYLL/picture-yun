@@ -15,9 +15,9 @@ public enum PictureReviewStatusEnum {
 
     private final String text;
 
-    private final int value;
+    private final Integer value;
 
-    PictureReviewStatusEnum(String text, int value) {
+    PictureReviewStatusEnum(String text, Integer value) {
         this.text = text;
         this.value = value;
     }

@@ -137,4 +137,6 @@ public interface PictureService extends IService<Picture> {
      * @param loginUser
      */
     CreateOutPaintingTaskResponse createPictureOutPaintingTask(CreatePictureOutPaintingTaskRequest createPictureOutPaintingTaskRequest, User loginUser);
+
+    PictureVO getPictureDetailById(long id,HttpServletRequest request);
 }

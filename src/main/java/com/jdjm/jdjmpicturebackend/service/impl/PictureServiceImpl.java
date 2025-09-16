@@ -5,6 +5,7 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.ObjUtil;
+import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
@@ -14,11 +15,17 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.jdjm.jdjmpicturebackend.api.aliyunai.AliYunAiApi;
 import com.jdjm.jdjmpicturebackend.api.aliyunai.model.CreateOutPaintingTaskRequest;
 import com.jdjm.jdjmpicturebackend.api.aliyunai.model.CreateOutPaintingTaskResponse;
+import com.jdjm.jdjmpicturebackend.constant.CacheKeyConstant;
+import com.jdjm.jdjmpicturebackend.constant.UserConstant;
 import com.jdjm.jdjmpicturebackend.exception.BusinessException;
 import com.jdjm.jdjmpicturebackend.exception.ErrorCode;
 import com.jdjm.jdjmpicturebackend.exception.ThrowUtils;
 import com.jdjm.jdjmpicturebackend.manager.CosManager;
 import com.jdjm.jdjmpicturebackend.manager.FileManager;
+import com.jdjm.jdjmpicturebackend.manager.auth.SpaceUserAuthManager;
+import com.jdjm.jdjmpicturebackend.manager.auth.StpKit;
+import com.jdjm.jdjmpicturebackend.manager.auth.model.SpaceUserPermissionConstant;
+import com.jdjm.jdjmpicturebackend.manager.redis.RedisCache;
 import com.jdjm.jdjmpicturebackend.manager.upload.FilePictureUpload;
 import com.jdjm.jdjmpicturebackend.manager.upload.PictureUploadTemplate;
 import com.jdjm.jdjmpicturebackend.manager.upload.UrlPictureUpload;
@@ -27,6 +34,7 @@ import com.jdjm.jdjmpicturebackend.model.dto.picture.*;
 import com.jdjm.jdjmpicturebackend.model.entity.Picture;
 import com.jdjm.jdjmpicturebackend.model.entity.Space;
 import com.jdjm.jdjmpicturebackend.model.entity.User;
+import com.jdjm.jdjmpicturebackend.model.enums.PictureInteractionTypeEnum;
 import com.jdjm.jdjmpicturebackend.model.enums.PictureReviewStatusEnum;
 import com.jdjm.jdjmpicturebackend.model.vo.PictureVO;
 import com.jdjm.jdjmpicturebackend.model.vo.UserVO;
@@ -37,6 +45,7 @@ import com.jdjm.jdjmpicturebackend.service.UserService;
 import com.jdjm.jdjmpicturebackend.utils.ColorSimilarUtils;
 import com.jdjm.jdjmpicturebackend.utils.ColorTransformUtils;
 import lombok.extern.slf4j.Slf4j;
+import net.bytebuddy.implementation.bytecode.Throw;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -92,10 +101,14 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
 
     @Resource
     private AliYunAiApi aliYunAiApi;
+    @Resource
+    private SpaceUserAuthManager spaceUserAuthManager;
 
     @Value("${image.upload.dir}")
     private String uploadDir; // 注入配置的上传目录
 
+    @Resource
+    private RedisCache redisCache;
     @Override
     public void validPicture(Picture picture) {
         ThrowUtils.throwIf(picture == null, ErrorCode.PARAMS_ERROR);
@@ -792,6 +805,122 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         createOutPaintingTaskRequest.setParameters(createPictureOutPaintingTaskRequest.getParameters());
         // 创建任务
         return aliYunAiApi.createOutPaintingTask(createOutPaintingTaskRequest);
+    }
+
+    @Override
+    public PictureVO getPictureDetailById(long id,HttpServletRequest request) {
+        Picture picture = this.getById(id);
+        ThrowUtils.throwIf(picture == null, ErrorCode.NOT_FOUND_ERROR);
+        PictureVO pictureVO = this.getPictureVO(picture,request);
+        List<String> permissionList;
+        Long spaceId = picture.getSpaceId();
+        // 判断是否已经登录
+        Object userObj = request.getSession().getAttribute(UserConstant.USER_LOGIN_STATE);
+        User currentUser = (User) userObj;
+
+        if (currentUser == null || currentUser.getId() == null) {
+            //没登录的用户，在公共图库中，只能查看图片和分享图片链接，不能删除、编辑、下载图片
+            if (spaceId == null) {
+                //什么都不用做 默认查看权限
+            } else {
+                //未登录用户 访问不了私有空间（包括个人私有空间和团队空间
+                throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
+            }
+        }else{
+            if(spaceId == null){
+                //已经登录的用户，对公共图库中自己上传的图片拥有所有权限 ； 系统管理员也拥有所有权限，
+                permissionList = spaceUserAuthManager.getPermissionList(null,currentUser);
+                permissionList = new ArrayList<>(permissionList);
+                if (picture.getUserId().equals(currentUser.getId())) {
+                    permissionList.add(SpaceUserPermissionConstant.PICTURE_EDIT);
+                    permissionList.add(SpaceUserPermissionConstant.PICTURE_DELETE);
+                }
+            }else{
+                Space space = spaceService.getById(spaceId);
+                ThrowUtils.throwIf(space == null,ErrorCode.NOT_FOUND_ERROR,"空间不存在");
+                permissionList = spaceUserAuthManager.getPermissionList(space,currentUser);
+                if(permissionList.size() == 0)
+                    throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
+            }
+            pictureVO.setPermissionList(permissionList);
+        }
+        if(PictureReviewStatusEnum.PASS.getValue().equals(picture.getReviewStatus())){
+            // 操作redis 初始化图片互动数据
+            this.initPictureInteraction(id);
+            //更新redis缓存中的图片操作类型数量
+            this.updateInteractionNumByRedis(id, PictureInteractionTypeEnum.VIEW.getKey(), 1);
+            //持久化redis缓存中的数据
+            this.fillPictureInteraction(picture);
+        }
+        return pictureVO;
+    }
+
+
+    @Async
+    protected void initPictureInteraction(long pictureId) {
+        String key = CacheKeyConstant.PICTURE_INTERACTION_KEY_PREFIX + pictureId;
+        Map<String, Object> interactions = redisCache.hGet(key);
+        if (interactions == null || interactions.isEmpty()) {
+            // 先创建一个可变的 HashMap
+            Map<String, Object> tempMap = new HashMap<>();
+            tempMap.put("0", 0);
+            tempMap.put("1", 0);
+            tempMap.put("2", 0);
+            tempMap.put("3", 0);
+            tempMap.put("4", 0);
+            tempMap.put("5", new Date().getTime());
+            // 然后包装成一个不可变的 Map
+            redisCache.hSets(key, Collections.unmodifiableMap(tempMap));
+//            redisCache.hSets(key, Map.of(
+//                    "0", 0,
+//                    "1", 0,
+//                    "2", 0,
+//                    "3", 0,
+//                    "4", 0,
+//                    "5", new Date().getTime()
+//            ));
+        }
+    }
+
+    /**
+     * 更新互动数量到Redis
+     *
+     * @param pictureId       图片 ID
+     * @param interactionType 互动类型
+     * @param num             变更数量
+     */
+    public void updateInteractionNumByRedis(Long pictureId, Integer interactionType, int num) {
+        String KEY = CacheKeyConstant.PICTURE_INTERACTION_KEY_PREFIX + pictureId;
+        // 存储并递增
+        redisCache.hIncrBy(KEY, String.valueOf(interactionType), num);
+        // this.updateInteractionNum(pictureId, interactionType, num);
+    }
+
+    /**
+     * 填充图片互动数据
+     *
+     * @param picture 图片领域对象
+     */
+    private void fillPictureInteraction(Picture picture) {
+        String key = CacheKeyConstant.PICTURE_INTERACTION_KEY_PREFIX + picture.getId();
+        Map<String, Object> interactions = redisCache.hGet(key);
+        if (interactions != null) {
+            if (ObjectUtil.isNotEmpty(interactions.get("0"))) {
+                picture.setLikeQuantity(Integer.parseInt(interactions.get("0").toString()));
+            }
+            if (ObjectUtil.isNotEmpty(interactions.get("1"))) {
+                picture.setCollectQuantity(Integer.parseInt(interactions.get("1").toString()));
+            }
+            if (ObjectUtil.isNotEmpty(interactions.get("2"))) {
+                picture.setDownloadQuantity(Integer.parseInt(interactions.get("2").toString()));
+            }
+            if (ObjectUtil.isNotEmpty(interactions.get("3"))) {
+                picture.setShareQuantity(Integer.parseInt(interactions.get("3").toString()));
+            }
+            if (ObjectUtil.isNotEmpty(interactions.get("4"))) {
+                picture.setViewQuantity(Integer.parseInt(interactions.get("4").toString()));
+            }
+        }
     }
 }
 
