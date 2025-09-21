@@ -22,6 +22,23 @@ create table if not exists user
     INDEX idx_userName (userName)
 ) comment '用户' collate = utf8mb4_unicode_ci;
 
+
+ALTER TABLE user
+    ADD COLUMN userEmail      varchar(50)                           not null comment '用户邮箱',
+    ADD COLUMN userPhone      varchar(50)                           null comment '用户手机号',
+    ADD COLUMN birthday        date                                  null comment '出生日期',
+    ADD COLUMN vipNnumber      bigint                                null comment '会员编号',
+    ADD COLUMN vipExpireTime datetime                              null comment '会员过期时间',
+    ADD COLUMN vipCode        varchar(20)                           null comment '会员兑换码',
+    ADD COLUMN vipSign        varchar(20)                           null comment '会员标识（vip 表的类型字段）',
+    ADD COLUMN shareCode      varchar(20)                           null comment '分享码',
+    ADD COLUMN inviteUserId  bigint                                null comment '邀请用户 ID';
+
+ALTER TABLE user ADD UNIQUE uk_userEmail (userEmail);
+ALTER TABLE user ADD UNIQUE uk_userPhone (userPhone);
+
+
+
 -- 图片表
 create table if not exists picture
 (
@@ -128,3 +145,7 @@ ALTER TABLE picture
     ADD COLUMN isShare          tinyint        default 0                 not null comment '是否分享（0-分享, 1-不分享）',
     ADD COLUMN expandStatus     tinyint        default 0                 not null comment '扩图状态（0-普通图片, 1-扩图图片, 2-扩图成功后的图片）',
     ADD COLUMN recommendScore   decimal(10, 4) default 0.0000            not null comment '推荐综合得分';
+
+
+#  开发阶段 先移除
+ALTER TABLE user DROP INDEX uk_userEmail;

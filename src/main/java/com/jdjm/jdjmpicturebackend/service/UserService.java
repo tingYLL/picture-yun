@@ -1,11 +1,14 @@
 package com.jdjm.jdjmpicturebackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.jdjm.jdjmpicturebackend.model.dto.user.UserEditPasswordRequest;
+import com.jdjm.jdjmpicturebackend.model.dto.user.UserEditRequest;
 import com.jdjm.jdjmpicturebackend.model.dto.user.UserQueryRequest;
 import com.jdjm.jdjmpicturebackend.model.entity.User;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.jdjm.jdjmpicturebackend.model.vo.LoginUserVO;
 import com.jdjm.jdjmpicturebackend.model.vo.UserVO;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -88,4 +91,10 @@ public interface UserService extends IService<User> {
      * @return
      */
     boolean isAdmin(User user);
+
+    void editUserPassword(UserEditPasswordRequest userEditPasswordRequest,User user);
+
+    String uploadAvatar(MultipartFile avatarFile,User user);
+    
+    void convertUserAvatar(Object object);
 }

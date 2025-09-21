@@ -1,6 +1,8 @@
 package com.jdjm.jdjmpicturebackend.controller;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jdjm.jdjmpicturebackend.annotation.AuthCheck;
 import com.jdjm.jdjmpicturebackend.common.BaseResponse;
@@ -17,6 +19,7 @@ import com.jdjm.jdjmpicturebackend.model.vo.UserVO;
 import com.jdjm.jdjmpicturebackend.service.UserService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
@@ -51,6 +54,7 @@ public class UserController {
         String userAccount = userLoginRequest.getUserAccount();
         String userPassword = userLoginRequest.getUserPassword();
         LoginUserVO loginUserVO = userService.userLogin(userAccount, userPassword, request);
+//        userService.convertUserAvatar(loginUserVO);
         return ResultUtils.success(loginUserVO);
     }
 
@@ -60,8 +64,10 @@ public class UserController {
     @GetMapping("/get/login")
     public BaseResponse<LoginUserVO> getLoginUser(HttpServletRequest request) {
         User loginUser = userService.getLoginUser(request);
+        LoginUserVO loginUserVO = userService.getLoginUserVO(loginUser);
+//        userService.convertUserAvatar(loginUserVO);
         //返回脱敏后的用户信息
-        return ResultUtils.success(userService.getLoginUserVO(loginUser));
+        return ResultUtils.success(loginUserVO);
     }
 
     /**
@@ -72,6 +78,34 @@ public class UserController {
         ThrowUtils.throwIf(request == null, ErrorCode.PARAMS_ERROR);
         boolean result = userService.userLogout(request);
         return ResultUtils.success(result);
+    }
+
+    /**
+     * 上传头像
+     *
+     * @param avatarFile 头像文件
+     * @return 头像地址
+     */
+    @PostMapping("/uploadAvatar")
+    public BaseResponse<String> uploadAvatar(@RequestParam("file") MultipartFile avatarFile,HttpServletRequest request) {
+        ThrowUtils.throwIf(avatarFile == null, ErrorCode.PARAMS_ERROR);
+        User loginUser = userService.getLoginUser(request);
+        return ResultUtils.success(userService.uploadAvatar(avatarFile,loginUser));
+    }
+
+    @PostMapping("/password")
+    public BaseResponse<Boolean> editUserPassword(@RequestBody UserEditPasswordRequest userEditPasswordRequest,HttpServletRequest request){
+        ThrowUtils.throwIf(userEditPasswordRequest == null, ErrorCode.PARAMS_ERROR);
+        if (StrUtil.hasBlank(userEditPasswordRequest.getOriginPassword(), userEditPasswordRequest.getNewPassword(),
+                userEditPasswordRequest.getConfirmPassword())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码不能为空");
+        }
+        if (!userEditPasswordRequest.getNewPassword().equals(userEditPasswordRequest.getConfirmPassword())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "两次新密码不一致");
+        }
+        User loginUser = userService.getLoginUser(request);
+        userService.editUserPassword(userEditPasswordRequest,loginUser);
+        return ResultUtils.success(true);
     }
 
     /**
@@ -102,6 +136,7 @@ public class UserController {
         ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
         User user = userService.getById(id);
         ThrowUtils.throwIf(user == null, ErrorCode.NOT_FOUND_ERROR);
+        userService.convertUserAvatar(user);
         return ResultUtils.success(user);
     }
 
@@ -110,9 +145,11 @@ public class UserController {
      */
     @GetMapping("/get/vo")
     public BaseResponse<UserVO> getUserVOById(long id) {
-        BaseResponse<User> response = getUserById(id);
-        User user = response.getData();
-        return ResultUtils.success(userService.getUserVO(user));
+//        BaseResponse<User> response = getUserById(id);
+//        User user = response.getData();
+        User user = userService.getById(id);
+        UserVO userVO = userService.getUserVO(user);
+        return ResultUtils.success(userVO);
     }
 
     /**
@@ -132,10 +169,22 @@ public class UserController {
      * 更新用户
      */
     @PostMapping("/update")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+//    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
     public BaseResponse<Boolean> updateUser(@RequestBody UserUpdateRequest userUpdateRequest) {
         if (userUpdateRequest == null || userUpdateRequest.getId() == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        String userPhone = userUpdateRequest.getUserPhone();
+        if (StrUtil.isNotEmpty(userPhone) && userPhone.length() != 11) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "手机号码格式错误");
+        }
+        String userProfile = userUpdateRequest.getUserProfile();
+        if (StrUtil.isNotEmpty(userProfile) && userProfile.length() > 500) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户简介过长");
+        }
+        String userAccount = userUpdateRequest.getUserAccount();
+        if (userAccount.length() <= 4) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户账号必须大于4位");
         }
         User user = new User();
         BeanUtils.copyProperties(userUpdateRequest, user);

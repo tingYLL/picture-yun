@@ -42,6 +42,51 @@ public class UserVO implements Serializable {
     private String userRole;
 
     /**
+     * 用户邮箱
+     */
+    private String userEmail;
+
+    /**
+     * 用户手机号
+     */
+    private String userPhone;
+
+    /**
+     * 出生日期
+     */
+    private Date birthday;
+
+    /**
+     * 会员编号
+     */
+    private Long vipNnumber;
+
+    /**
+     * 会员过期时间
+     */
+    private Date vipExpireTime;
+
+    /**
+     * 会员兑换码
+     */
+    private String vipCode;
+
+    /**
+     * 会员标识（vip 表的类型字段）
+     */
+    private String vipSign;
+
+    /**
+     * 分享码
+     */
+    private String shareCode;
+
+    /**
+     * 邀请用户 ID
+     */
+    private Long inviteUserId;
+
+    /**
      * 创建时间
      */
     private Date createTime;

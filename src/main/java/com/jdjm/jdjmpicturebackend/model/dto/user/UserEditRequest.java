@@ -5,16 +5,12 @@ import lombok.Data;
 import java.io.Serializable;
 import java.util.Date;
 
-/**
- * 更新用户请求
- */
 @Data
-public class UserUpdateRequest implements Serializable {
-
+public class UserEditRequest implements Serializable {
     /**
-     * id
+     * 用户ID
      */
-    private Long id;
+    private Long userId;
 
     /**
      * 账号
@@ -22,19 +18,14 @@ public class UserUpdateRequest implements Serializable {
     private String userAccount;
 
     /**
-     * 用户邮箱
+     * 用户手机号
      */
-    private String userEmail;
+    private String userPhone;
 
     /**
      * 用户昵称
      */
     private String userName;
-    /**
-     * 用户手机号
-     */
-    private String userPhone;
-
 
     /**
      * 用户头像
@@ -42,7 +33,7 @@ public class UserUpdateRequest implements Serializable {
     private String userAvatar;
 
     /**
-     * 简介
+     * 用户简介
      */
     private String userProfile;
 
@@ -50,10 +41,11 @@ public class UserUpdateRequest implements Serializable {
      * 出生日期
      */
     private Date birthday;
+
     /**
-     * 用户角色：user/admin
+     * 分享码
      */
-    private String userRole;
+    private String shareCode;
 
     private static final long serialVersionUID = 1L;
 }

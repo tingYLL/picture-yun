@@ -1,15 +1,23 @@
 package com.jdjm.jdjmpicturebackend.service.impl;
 
+import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollectionUtil;
+import cn.hutool.core.date.DateUtil;
+import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.ObjUtil;
+import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.jdjm.jdjmpicturebackend.constant.UserConstant;
 import com.jdjm.jdjmpicturebackend.exception.BusinessException;
 import com.jdjm.jdjmpicturebackend.exception.ErrorCode;
+import com.jdjm.jdjmpicturebackend.exception.ThrowUtils;
 import com.jdjm.jdjmpicturebackend.manager.auth.StpKit;
+import com.jdjm.jdjmpicturebackend.model.dto.file.UploadPictureResult;
+import com.jdjm.jdjmpicturebackend.model.dto.user.UserEditPasswordRequest;
+import com.jdjm.jdjmpicturebackend.model.dto.user.UserEditRequest;
 import com.jdjm.jdjmpicturebackend.model.dto.user.UserQueryRequest;
 import com.jdjm.jdjmpicturebackend.model.entity.User;
 import com.jdjm.jdjmpicturebackend.model.enums.UserRoleEnum;
@@ -18,13 +26,26 @@ import com.jdjm.jdjmpicturebackend.model.vo.UserVO;
 import com.jdjm.jdjmpicturebackend.service.UserService;
 import com.jdjm.jdjmpicturebackend.mapper.UserMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.zookeeper.Login;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import static com.jdjm.jdjmpicturebackend.constant.UserConstant.USER_LOGIN_STATE;
 
 /**
 * @author jdjm
@@ -36,6 +57,15 @@ import java.util.stream.Collectors;
 public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     implements UserService{
 
+    @Value("${image.upload.dir}")
+    private String uploadDir; // 注入配置的上传目录
+
+    @Value("${server.port}")
+    private String port;
+    @Value("${server.servlet.context-path}")
+    private String contextPath;
+    @Value("${image.local.enable}")
+    private Boolean isLocalStore;
 
     /**
      * 用户注册
@@ -73,16 +103,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         User user = new User();
         user.setUserAccount(userAccount);
         user.setUserPassword(encryptPassword);
-        user.setUserName("无名");
+        String random = RandomUtil.randomString(6);
+        user.setUserName("用户_"+random);
         user.setUserRole(UserRoleEnum.USER.getValue());
+        user.setUserEmail("");
         boolean saveResult = this.save(user);
         if (!saveResult) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "注册失败，数据库错误");
         }
         return user.getId();
     }
-
-
 
     /**
      * 用户登录
@@ -145,6 +175,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         }
         LoginUserVO loginUserVO = new LoginUserVO();
         BeanUtil.copyProperties(user,loginUserVO);
+        if(isLocalStore||!user.getUserAvatar().startsWith("http")){
+            //如果开启了本地存储，或者用户头像不是外链，那么需要拼接上本地存储路径
+            loginUserVO.setUserAvatar("http://localhost:"+port+contextPath+loginUserVO.getUserAvatar());
+        }
         return loginUserVO;
     }
 
@@ -156,6 +190,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         }
         UserVO userVO = new UserVO();
         BeanUtil.copyProperties(user,userVO);
+        if(isLocalStore||!user.getUserAvatar().startsWith("http")){
+            //如果开启了本地存储，或者用户头像不是外链，那么需要拼接上本地存储路径
+            userVO.setUserAvatar("http://localhost:"+port+contextPath+user.getUserAvatar());
+        }
         return userVO;
     }
 
@@ -227,6 +265,82 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     public boolean isAdmin(User user) {
         return user != null && UserRoleEnum.ADMIN.getValue().equals(user.getUserRole());
     }
+
+    @Override
+    public void editUserPassword(UserEditPasswordRequest userEditPasswordRequest,User user) {
+
+        String encryptOriginPassword = getEncryptPassword(userEditPasswordRequest.getOriginPassword());
+        if(!user.getUserPassword().equals(encryptOriginPassword)){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "原密码错误");
+        }
+        user.setUserPassword(getEncryptPassword(userEditPasswordRequest.getNewPassword()));
+        try{
+            saveOrUpdate(user);
+            HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest();
+            userLogout(request);
+        }catch (DataAccessException e){
+            log.error("更新用户密码失败. User: {}", user.getId(), e);
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "系统数据错误，修改密码失败");
+        }catch (Exception e){
+            throw new BusinessException(ErrorCode.OPERATION_ERROR,"修改密码失败");
+        }
+    }
+
+    @Override
+    public String uploadAvatar(MultipartFile avatarFile,User user) {
+        Long userId = user.getId();
+        String uploadPathPrefix = String.format("avatar/%s", userId);
+        File destFile;
+        String uploadPath;
+        String originalFilename;
+        try{
+            //拼接图片上传地址
+            String uuid = RandomUtil.randomString(16);
+            originalFilename = avatarFile.getOriginalFilename();
+            // 为避免用户上传图片的名称中带有特殊字符，如 & ? 引起浏览器url解析异常
+            // 转换文件上传路径，而不是使用原始文件名称，增强安全性
+            String uploadFilename = String.format("%s_%s.%s", DateUtil.formatDate(new Date()), uuid,
+                    FileUtil.getSuffix(originalFilename));
+            uploadPath = String.format("/%s/%s", uploadPathPrefix, uploadFilename);
+            destFile = new File(Paths.get(uploadDir, uploadPath).toString());
+
+            // 确保目录存在
+            if (!destFile.getParentFile().exists()) {
+                destFile.getParentFile().mkdirs();
+            }
+
+            // 保存文件
+            avatarFile.transferTo(destFile);
+            user.setUserAvatar("/images"+uploadPath);
+            boolean result = this.updateById(user);
+            if(!result)
+                throw new BusinessException(ErrorCode.OPERATION_ERROR,"头像更新失败");
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new BusinessException(ErrorCode.OPERATION_ERROR,"头像更新失败");
+        }
+//        redisCache.delete(UserConstant.USER_LOGIN_STATE + StpUtil.getLoginIdAsLong());
+        return "http://localhost:"+ port + contextPath + "/images"+uploadPath;
+    }
+
+
+    @Override
+    public void convertUserAvatar(Object object) {
+        if (object instanceof LoginUserVO){
+            LoginUserVO loginUserVO = (LoginUserVO) object;
+            String userAvatar = "http://localhost:"+port+contextPath+loginUserVO.getUserAvatar();
+            loginUserVO.setUserAvatar(userAvatar);
+        }else if (object instanceof UserVO){
+            UserVO userVO = (UserVO) object;
+            String userAvatar = "http://localhost:"+port+contextPath+userVO.getUserAvatar();
+            userVO.setUserAvatar(userAvatar);
+        }else {
+            User user = (User) object;
+            String userAvatar = "http://localhost:"+port+contextPath+user.getUserAvatar();
+            user.setUserAvatar(userAvatar);
+        }
+    }
+
 }
 
 
