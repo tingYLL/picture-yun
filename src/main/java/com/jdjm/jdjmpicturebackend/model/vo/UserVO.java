@@ -80,7 +80,10 @@ public class UserVO implements Serializable {
      * 分享码
      */
     private String shareCode;
-
+    /**
+     * 是否禁用（0-正常, 1-禁用）
+     */
+    private Integer isDisabled;
     /**
      * 邀请用户 ID
      */

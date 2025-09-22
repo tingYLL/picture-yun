@@ -20,6 +20,7 @@ import com.jdjm.jdjmpicturebackend.model.dto.user.UserEditPasswordRequest;
 import com.jdjm.jdjmpicturebackend.model.dto.user.UserEditRequest;
 import com.jdjm.jdjmpicturebackend.model.dto.user.UserQueryRequest;
 import com.jdjm.jdjmpicturebackend.model.entity.User;
+import com.jdjm.jdjmpicturebackend.model.enums.UserDisabledEnum;
 import com.jdjm.jdjmpicturebackend.model.enums.UserRoleEnum;
 import com.jdjm.jdjmpicturebackend.model.vo.LoginUserVO;
 import com.jdjm.jdjmpicturebackend.model.vo.UserVO;
@@ -30,12 +31,15 @@ import org.apache.zookeeper.Login;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.dao.DataAccessException;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.session.data.redis.RedisOperationsSessionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.io.File;
 import java.io.IOException;
@@ -43,6 +47,8 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.jdjm.jdjmpicturebackend.constant.UserConstant.USER_LOGIN_STATE;
@@ -66,7 +72,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     private String contextPath;
     @Value("${image.local.enable}")
     private Boolean isLocalStore;
-
+//    @Resource
+//    private RedisTemplate<String, Object> redisTemplate;
+//    private RedisOperationsSessionRepository sessionRepository; // Spring Session提供的操作接口
     /**
      * 用户注册
      *
@@ -106,7 +114,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         String random = RandomUtil.randomString(6);
         user.setUserName("用户_"+random);
         user.setUserRole(UserRoleEnum.USER.getValue());
-        user.setUserEmail("");
         boolean saveResult = this.save(user);
         if (!saveResult) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "注册失败，数据库错误");
@@ -146,8 +153,18 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
             log.info("user login failed, userAccount cannot match userPassword");
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户不存在或者密码错误");
         }
-        // 4. 保存用户的登录态
+        // 判断是否被禁用
+        if (UserDisabledEnum.isDisabled(user.getIsDisabled())) {
+            throw new BusinessException(ErrorCode.FORBIDDEN_ERROR, "用户已被禁用");
+        }
+        // 4. 保存用户的登录态到redis中
         request.getSession().setAttribute(UserConstant.USER_LOGIN_STATE, user);
+//        String sessionId = request.getSession().getId();
+//        String userSessionsKey = "user:sessions:" + user.getId();
+        // 使用RedisTemplate操作Redis
+//        redisTemplate.opsForSet().add(userSessionsKey, sessionId);
+        // 存储的这个集合设置一个过期时间，比如和Session过期时间一致
+//        redisTemplate.expire(userSessionsKey, 180, TimeUnit.SECONDS);
         //记录用户登录态到Sa-token.便于空间鉴权时使用
         StpKit.SPACE.login(user.getId());
         StpKit.SPACE.getSession().set(UserConstant.USER_LOGIN_STATE, user);
@@ -236,6 +253,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         User loginUser = this.getLoginUser(request);
         StpKit.SPACE.logout(loginUser.getId());
         request.getSession().removeAttribute(UserConstant.USER_LOGIN_STATE);
+//        String userSessionsKey = "user:sessions:" + loginUser.getId();;
+//        redisTemplate.delete(userSessionsKey);
         return true;
     }
 
@@ -251,9 +270,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         String userRole = userQueryRequest.getUserRole();
         String sortField = userQueryRequest.getSortField();
         String sortOrder = userQueryRequest.getSortOrder();
+        String userEmail = userQueryRequest.getUserEmail();
+        String userPhone = userQueryRequest.getUserPhone();
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq(ObjUtil.isNotNull(id), "id", id);
         queryWrapper.eq(StrUtil.isNotBlank(userRole), "userRole", userRole);
+        queryWrapper.eq(StrUtil.isNotBlank(userEmail), "userEmail", userEmail);
+        queryWrapper.eq(StrUtil.isNotBlank(userPhone), "userPhone", userPhone);
         queryWrapper.like(StrUtil.isNotBlank(userAccount), "userAccount", userAccount);
         queryWrapper.like(StrUtil.isNotBlank(userName), "userName", userName);
         queryWrapper.like(StrUtil.isNotBlank(userProfile), "userProfile", userProfile);
@@ -340,6 +363,62 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
             user.setUserAvatar(userAvatar);
         }
     }
+
+    @Override
+    public void disabledUser(Long id, Integer isDisabled) {
+        boolean existed = this.getBaseMapper()
+                .exists(new QueryWrapper<User>()
+                        .eq("id", id)
+                );
+        if (!existed) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "用户不存在!");
+        }
+        User user = new User();
+        user.setId(id);
+        user.setIsDisabled(isDisabled);
+        boolean result = this.updateById(user);
+        if (result) {
+//            redisCache.delete(UserConstant.USER_LOGIN_STATE + StpUtil.getLoginIdAsLong());
+            return;
+        }
+        throw new BusinessException(ErrorCode.SYSTEM_ERROR, "禁用失败!");
+    }
+
+//    @Override
+//    public String resetPassword(Long id) {
+//        boolean existed = this.getBaseMapper()
+//                .exists(new QueryWrapper<User>()
+//                        .eq("id", id)
+//                );
+//        if (!existed) {
+//            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "用户不存在!");
+//        }
+//        String tempPassword = RandomUtil.randomString(8);
+//        User user = new User();
+//        user.setId(id);
+//        // 3. 密码一定要加密
+//        String encryptPassword = getEncryptPassword(tempPassword);
+//        user.setUserPassword(encryptPassword);
+//        boolean result = this.updateById(user);
+//        if (!result) {
+//            throw new BusinessException(ErrorCode.OPERATION_ERROR, "重置密码失败");
+//        }
+//        User loginUser = this.getById(id);
+//        StpKit.SPACE.logout(loginUser.getId());
+//        String userSessionKey = "user:sessions:" + loginUser.getId();
+//        //获取被重置密码的用户的SessionId
+//        Set<Object> sessionIds = redisTemplate.opsForSet().members(userSessionKey);
+//        if(sessionIds != null){
+//            //移除该用户的所有会话
+//            for (Object sessionIdObj : sessionIds) {
+//                String sessionId = (String) sessionIdObj;
+//                sessionRepository.deleteById(sessionId);
+//            }
+//        }
+//        //最后删除这个记录集合本身
+//        redisTemplate.delete(userSessionKey);
+//        return tempPassword;
+//    }
 
 }
 

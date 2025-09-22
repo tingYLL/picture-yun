@@ -55,5 +55,10 @@ public class UserUpdateRequest implements Serializable {
      */
     private String userRole;
 
+    /**
+     * 是否禁用（0-正常, 1-禁用）
+     */
+    private Integer isDisabled = 0;
+
     private static final long serialVersionUID = 1L;
 }

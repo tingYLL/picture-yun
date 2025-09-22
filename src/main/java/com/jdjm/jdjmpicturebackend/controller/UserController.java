@@ -109,6 +109,20 @@ public class UserController {
     }
 
     /**
+     * 重置用户密码
+     *
+     * @param userUpdateRequest 用户更新请求
+     * @return 新密码
+     */
+//    @PostMapping("/resetPassword")
+//    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+//    public BaseResponse<String> resetPassword(@RequestBody UserUpdateRequest userUpdateRequest) {
+//        ThrowUtils.throwIf(userUpdateRequest == null, ErrorCode.PARAMS_ERROR);
+//        Long id = userUpdateRequest.getId();
+//        ThrowUtils.throwIf(ObjectUtil.isEmpty(id), ErrorCode.PARAMS_ERROR);
+//        return ResultUtils.success(userService.resetPassword(id));
+//    }
+    /**
      * 创建用户
      */
     @PostMapping("/add")
@@ -190,6 +204,24 @@ public class UserController {
         BeanUtils.copyProperties(userUpdateRequest, user);
         boolean result = userService.updateById(user);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+        return ResultUtils.success(true);
+    }
+
+    /**
+     * 禁用用户
+     *
+     * @param userUpdateRequest 用户更新请求
+     * @return 是否成功
+     */
+    @PostMapping("/disabledUser")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<Boolean> disabledUser(@RequestBody UserUpdateRequest userUpdateRequest) {
+        ThrowUtils.throwIf(userUpdateRequest == null, ErrorCode.PARAMS_ERROR);
+        Long id = userUpdateRequest.getId();
+        ThrowUtils.throwIf(ObjectUtil.isEmpty(id), ErrorCode.PARAMS_ERROR);
+        Integer isDisabled = userUpdateRequest.getIsDisabled();
+        ThrowUtils.throwIf(ObjectUtil.isEmpty(isDisabled), ErrorCode.PARAMS_ERROR);
+        userService.disabledUser(id, isDisabled);
         return ResultUtils.success(true);
     }
 

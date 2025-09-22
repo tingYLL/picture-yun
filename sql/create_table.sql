@@ -149,3 +149,6 @@ ALTER TABLE picture
 
 #  开发阶段 先移除
 ALTER TABLE user DROP INDEX uk_userEmail;
+ALTER TABLE user MODIFY COLUMN userEmail VARCHAR(50) NULL;
+ALTER TABLE user
+    ADD COLUMN isDisabled  tinyint default 0 not null comment '是否禁用（0-正常, 1-禁用）';

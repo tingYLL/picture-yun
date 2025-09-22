@@ -95,6 +95,10 @@ public interface UserService extends IService<User> {
     void editUserPassword(UserEditPasswordRequest userEditPasswordRequest,User user);
 
     String uploadAvatar(MultipartFile avatarFile,User user);
-    
+
     void convertUserAvatar(Object object);
+
+    void disabledUser(Long id, Integer isDisabled);
+
+//    String resetPassword(Long id);
 }

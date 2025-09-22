@@ -120,6 +120,11 @@
             <artifactId>huaweicloud-sdk-bss</artifactId>
             <version>3.1.163</version>
         </dependency>
+        <!-- Spring Session 与 Redis 集成 （引入该依赖后 Session不再存储于内存中，而是存储于Redis）-->
+        <dependency>
+            <groupId>org.springframework.session</groupId>
+            <artifactId>spring-session-data-redis</artifactId>
+        </dependency>
     </dependencies>
     <dependencyManagement>
         <dependencies>
