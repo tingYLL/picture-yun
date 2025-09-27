@@ -31,6 +31,7 @@ import com.jdjm.jdjmpicturebackend.manager.upload.PictureUploadTemplate;
 import com.jdjm.jdjmpicturebackend.manager.upload.UrlPictureUpload;
 import com.jdjm.jdjmpicturebackend.model.dto.file.UploadPictureResult;
 import com.jdjm.jdjmpicturebackend.model.dto.picture.*;
+import com.jdjm.jdjmpicturebackend.model.entity.Category;
 import com.jdjm.jdjmpicturebackend.model.entity.Picture;
 import com.jdjm.jdjmpicturebackend.model.entity.Space;
 import com.jdjm.jdjmpicturebackend.model.entity.User;
@@ -38,6 +39,7 @@ import com.jdjm.jdjmpicturebackend.model.enums.PictureInteractionTypeEnum;
 import com.jdjm.jdjmpicturebackend.model.enums.PictureReviewStatusEnum;
 import com.jdjm.jdjmpicturebackend.model.vo.PictureVO;
 import com.jdjm.jdjmpicturebackend.model.vo.UserVO;
+import com.jdjm.jdjmpicturebackend.service.CategoryService;
 import com.jdjm.jdjmpicturebackend.service.PictureService;
 import com.jdjm.jdjmpicturebackend.mapper.PictureMapper;
 import com.jdjm.jdjmpicturebackend.service.SpaceService;
@@ -89,6 +91,8 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
 
     @Resource
     private UserService userService;
+    @Resource
+    private CategoryService categoryService;
 
     @Resource
     private SpaceService spaceService;
@@ -103,12 +107,18 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
     private AliYunAiApi aliYunAiApi;
     @Resource
     private SpaceUserAuthManager spaceUserAuthManager;
-
+    @Value("${image.local.enable}")
+    private Boolean isLocalStore;
+    @Value("${server.port}")
+    private String port;
+    @Value("${server.servlet.context-path}")
+    private String contextPath;
     @Value("${image.upload.dir}")
     private String uploadDir; // 注入配置的上传目录
 
     @Resource
     private RedisCache redisCache;
+
     @Override
     public void validPicture(Picture picture) {
         ThrowUtils.throwIf(picture == null, ErrorCode.PARAMS_ERROR);
@@ -434,7 +444,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         Long id = pictureQueryRequest.getId();
         String name = pictureQueryRequest.getName();
         String introduction = pictureQueryRequest.getIntroduction();
-        String category = pictureQueryRequest.getCategory();
+        Long categoryId = pictureQueryRequest.getCategoryId();
         List<String> tags = pictureQueryRequest.getTags();
         Long picSize = pictureQueryRequest.getPicSize();
         Integer picWidth = pictureQueryRequest.getPicWidth();
@@ -453,15 +463,15 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         String sortField = pictureQueryRequest.getSortField();
         String sortOrder = pictureQueryRequest.getSortOrder();
         // 从多字段中搜索
-        if (StrUtil.isNotBlank(searchText)) {
-            // 需要拼接查询条件
-            // and (name like "%xxx%" or introduction like "%xxx%")
-            queryWrapper.and(
-                    qw -> qw.like("name", searchText)
-                            .or()
-                            .like("introduction", searchText)
-            );
-        }
+//        if (StrUtil.isNotBlank(searchText)) {
+//            // 需要拼接查询条件
+//            // and (name like "%xxx%" or introduction like "%xxx%")
+//            queryWrapper.and(
+//                    qw -> qw.like("name", searchText)
+//                            .or()
+//                            .like("introduction", searchText)
+//            );
+//        }
         queryWrapper.eq(ObjUtil.isNotEmpty(id), "id", id);
         queryWrapper.eq(ObjUtil.isNotEmpty(userId), "userId", userId);
         queryWrapper.eq(ObjUtil.isNotEmpty(spaceId), "spaceId", spaceId);
@@ -470,7 +480,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         queryWrapper.like(StrUtil.isNotBlank(introduction), "introduction", introduction);
         queryWrapper.like(StrUtil.isNotBlank(picFormat), "picFormat", picFormat);
         queryWrapper.like(StrUtil.isNotBlank(reviewMessage), "reviewMessage", reviewMessage);
-        queryWrapper.eq(StrUtil.isNotBlank(category), "category", category);
+        queryWrapper.eq(ObjUtil.isNotNull(categoryId), "categoryId", categoryId);
         queryWrapper.eq(ObjUtil.isNotEmpty(picWidth), "picWidth", picWidth);
         queryWrapper.eq(ObjUtil.isNotEmpty(picHeight), "picHeight", picHeight);
         queryWrapper.eq(ObjUtil.isNotEmpty(picSize), "picSize", picSize);
@@ -481,13 +491,17 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         queryWrapper.ge(ObjUtil.isNotEmpty(startEditTime), "editTime", startEditTime);
         // < endEditTime
         queryWrapper.lt(ObjUtil.isNotEmpty(endEditTime), "editTime", endEditTime);
-        // JSON 数组查询
-        if (CollUtil.isNotEmpty(tags)) {
-//            多次调用like会默认以AND连接   最终生成条件 and tags like '%"Java"%' and  tags like '%"Python"%'
-            for (String tag : tags) {
-                queryWrapper.like("tags", "\"" + tag + "\"");
-            }
-        }
+//        if (CollUtil.isNotEmpty(tags)) {
+////            多次调用like会默认以AND连接   最终生成条件 and tags like '%"Java"%' and  tags like '%"Python"%'
+//            for (String tag : tags) {
+//                queryWrapper.like("tags", "\"" + tag + "\"");
+//            }
+//        }
+        queryWrapper.and(StrUtil.isNotEmpty(searchText), qw ->
+                qw.like("name", searchText)
+                        .or().like("introduction", searchText)
+                        .or().apply("FIND_IN_SET ('" + searchText + "', tags) > 0")
+        );
         // 排序
         queryWrapper.orderBy(StrUtil.isNotEmpty(sortField), sortOrder.equals("ascend"), sortField);
         return queryWrapper;
@@ -504,6 +518,12 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
             User user = userService.getById(userId);
             UserVO userVO = userService.getUserVO(user);
             pictureVO.setUser(userVO);
+        }
+        //查询并填充分类信息
+        Long categoryId = pictureVO.getCategoryId();
+        if(categoryId!=null){
+            Category category = categoryService.getById(categoryId);
+            pictureVO.setCategoryInfo(category);
         }
         return pictureVO;
     }
@@ -522,20 +542,31 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         List<PictureVO> pictureVOList = pictureList.stream()
                 .map(PictureVO::objToVo)
                 .collect(Collectors.toList());
-        // 1. 关联查询用户信息
-        // 1,2,3,4
+        //查询分类信息
+        Set<Long> categoryIds = pictureList.stream().map(Picture::getCategoryId).collect(Collectors.toSet());
+        List<Category> categoryList = categoryService.listByIds(categoryIds);
+        Map<Long, List<Category>> categoryListMap = categoryList.stream().collect(Collectors.groupingBy(Category::getId));
+
+        //查询用户信息
         Set<Long> userIdSet = pictureList.stream().map(Picture::getUserId).collect(Collectors.toSet());
         // 1 => user1, 2 => user2
         Map<Long, List<User>> userIdUserListMap = userService.listByIds(userIdSet).stream()
                 .collect(Collectors.groupingBy(User::getId));
-        // 2. 填充信息
+
+        //填充信息
         pictureVOList.forEach(pictureVO -> {
+            //填充用户信息
             Long userId = pictureVO.getUserId();
             User user = null;
             if (userIdUserListMap.containsKey(userId)) {
                 user = userIdUserListMap.get(userId).get(0);
             }
             pictureVO.setUser(userService.getUserVO(user));
+            //填充分类信息
+            Long categoryId = pictureVO.getCategoryId();
+            if(categoryListMap.containsKey(categoryId)){
+                pictureVO.setCategoryInfo(categoryListMap.get(categoryId).get(0));
+            }
         });
         pictureVOPage.setRecords(pictureVOList);
         return pictureVOPage;
@@ -664,7 +695,11 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         Picture picture = new Picture();
         BeanUtils.copyProperties(pictureEditRequest, picture);
         // 注意将 list 转为 string
-        picture.setTags(JSONUtil.toJsonStr(pictureEditRequest.getTags()));
+//        picture.setTags(JSONUtil.toJsonStr(pictureEditRequest.getTags()));
+        List<String> tags = pictureEditRequest.getTags();
+        if (CollUtil.isNotEmpty(tags)) {
+            picture.setTags(String.join(",", tags));
+        }
         // 设置编辑时间
         picture.setEditTime(new Date());
         // 数据校验

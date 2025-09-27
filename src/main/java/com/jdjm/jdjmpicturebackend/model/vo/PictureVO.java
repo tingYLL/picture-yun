@@ -1,6 +1,8 @@
 package com.jdjm.jdjmpicturebackend.model.vo;
 
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
+import com.jdjm.jdjmpicturebackend.model.entity.Category;
 import com.jdjm.jdjmpicturebackend.model.entity.Picture;
 import lombok.Data;
 import org.springframework.beans.BeanUtils;
@@ -11,6 +13,7 @@ import javax.annotation.PostConstruct;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
@@ -46,12 +49,7 @@ public class PictureVO implements Serializable {
     /**
      * 标签
      */
-    private List<String> tags;
-
-    /**
-     * 分类
-     */
-    private String category;
+    private List<String> tagList;
 
     /**
      * 文件体积
@@ -111,6 +109,13 @@ public class PictureVO implements Serializable {
      * 分类 ID
      */
     private Long categoryId;
+
+    private Category categoryInfo;
+
+    /**
+     * 分类名称
+     */
+    private String categoryName;
 
     /**
      * 资源状态（0-存在 COS, 1-不存在 COS）
@@ -194,19 +199,6 @@ public class PictureVO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /**
-     * 封装类转对象
-     */
-    public static Picture voToObj(PictureVO pictureVO) {
-        if (pictureVO == null) {
-            return null;
-        }
-        Picture picture = new Picture();
-        BeanUtils.copyProperties(pictureVO, picture);
-        // 类型不同，需要转换
-        picture.setTags(JSONUtil.toJsonStr(pictureVO.getTags()));
-        return picture;
-    }
 
     /**
      * 对象转封装类
@@ -217,8 +209,13 @@ public class PictureVO implements Serializable {
         }
         PictureVO pictureVO = new PictureVO();
         BeanUtils.copyProperties(picture, pictureVO);
-        // 类型不同，需要转换
-        pictureVO.setTags(JSONUtil.toList(picture.getTags(), String.class));
+        if(StrUtil.isNotBlank(picture.getTags())){
+            pictureVO.setTagList(Arrays.asList(picture.getTags().split(",")));
+        }else{
+            //设置为空
+            pictureVO.setTagList(new ArrayList<>());
+        }
+//        pictureVO.setTags(JSONUtil.toList(picture.getTags(), String.class));
         //判断图片存储位置 如果是Local 需补充完整url
         if(isLocalStore){
             pictureVO.setUrl("http://localhost:"+port+contextPath+picture.getUrl());

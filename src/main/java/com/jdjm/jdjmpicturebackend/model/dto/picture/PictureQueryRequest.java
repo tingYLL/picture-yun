@@ -31,9 +31,9 @@ public class PictureQueryRequest extends PageRequest implements Serializable {
     private String introduction;
 
     /**
-     * 分类
+     * 分类ID
      */
-    private String category;
+    private Long categoryId;
 
     /**
      * 标签

@@ -172,7 +172,7 @@ public class PictureController {
     }
 
     /**
-     * 根据 id 获取图片（仅管理员可用）
+     * 根据 id 获取图片（仅管理员可用，前端暂时没用到该接口）
      */
     @GetMapping("/get")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
@@ -200,25 +200,18 @@ public class PictureController {
         return ResultUtils.success(pictureVO);
     }
 
-
     /**
      * 分页获取图片列表（仅管理员可用）
      */
     @PostMapping("/list/page")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<Page<Picture>> listPictureByPage(@RequestBody PictureQueryRequest pictureQueryRequest) {
+    public BaseResponse<Page<PictureVO>> listPictureByPage(@RequestBody PictureQueryRequest pictureQueryRequest,HttpServletRequest request) {
         long current = pictureQueryRequest.getCurrent();
         long size = pictureQueryRequest.getPageSize();
-        // 查询数据库
         Page<Picture> picturePage = pictureService.page(new Page<>(current, size),
                 pictureService.getQueryWrapper(pictureQueryRequest));
-        List<Picture> pictureList = picturePage.getRecords();
-        if (isLocalStore) {
-            for (Picture picture : pictureList) {
-                picture.setUrl("http://localhost:"+port+contextPath+picture.getUrl());
-            }
-        }
-        return ResultUtils.success(picturePage);
+        Page<PictureVO> pictureVOPage = pictureService.getPictureVOPage(picturePage, request);
+        return ResultUtils.success(pictureVOPage);
     }
 
     /**
@@ -271,16 +264,6 @@ public class PictureController {
         return ResultUtils.success(true);
     }
 
-
-    @GetMapping("/tag_category")
-    public BaseResponse<PictureTagCategory> listPictureTagCategory() {
-        PictureTagCategory pictureTagCategory = new PictureTagCategory();
-        List<String> tagList = Arrays.asList("热门", "搞笑", "生活", "高清", "艺术", "校园", "背景", "简历", "创意");
-        List<String> categoryList = Arrays.asList("模板", "电商", "表情包", "素材", "海报");
-        pictureTagCategory.setTagList(tagList);
-        pictureTagCategory.setCategoryList(categoryList);
-        return ResultUtils.success(pictureTagCategory);
-    }
 
     /**
      * 审核图片

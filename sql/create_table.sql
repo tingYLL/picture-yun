@@ -152,3 +152,21 @@ ALTER TABLE user DROP INDEX uk_userEmail;
 ALTER TABLE user MODIFY COLUMN userEmail VARCHAR(50) NULL;
 ALTER TABLE user
     ADD COLUMN isDisabled  tinyint default 0 not null comment '是否禁用（0-正常, 1-禁用）';
+
+create table category
+(
+    id          bigint unsigned auto_increment comment '主键 ID'
+        primary key,
+    name        varchar(128)                              not null comment '名称',
+    parentId   bigint unsigned default '0'               null comment '父分类 ID（0-表示顶层分类）',
+    useNum     int             default 0                 not null comment '使用数量',
+    userId     bigint                                    not null comment '创建用户 ID',
+    isDelete   tinyint         default 0                 not null comment '是否删除（0-正常, 1-删除）',
+    editTime   datetime        default CURRENT_TIMESTAMP not null comment '编辑时间',
+    createTime datetime        default CURRENT_TIMESTAMP not null comment '创建时间',
+    updateTime datetime        default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP comment '更新时间'
+)
+    comment '分类表' collate = utf8mb4_unicode_ci;
+
+create index idx_name
+    on category (name);
