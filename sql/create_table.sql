@@ -170,3 +170,37 @@ create table category
 
 create index idx_name
     on category (name);
+
+create table picture_interaction
+(
+    userId            bigint                             not null comment '用户 ID',
+    pictureId         bigint                             not null comment '图片 ID',
+    interactionType   tinyint                            not null comment '交互类型（0-点赞, 1-收藏）',
+    interactionStatus tinyint                            not null comment '交互状态（0-存在, 1-取消）',
+    isDelete          tinyint  default 0                 not null comment '是否删除（0-正常, 1-删除）',
+    editTime          datetime default CURRENT_TIMESTAMP not null comment '编辑时间',
+    createTime        datetime default CURRENT_TIMESTAMP not null comment '创建时间',
+    updateTime        datetime default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP comment '更新时间',
+    primary key (userId, pictureId, interactionType)
+)
+    comment '图片交互表' collate = utf8mb4_unicode_ci;
+
+create table scheduled_task
+(
+    id          bigint unsigned auto_increment comment '主键ID'
+        primary key,
+    tasKey    varchar(255)                       not null comment '任务 KEY（存在内存中）',
+    taskName   varchar(255)                       not null comment '任务名称',
+    taskCron   varchar(255)                       not null comment '任务 corn 表达式',
+    taskDesc   varchar(255)                       null comment '任务描述',
+    taskBean   varchar(255)                       not null comment '任务 Bean 名称（执行任务的 bean）',
+    taskStatus tinyint  default 0                 not null comment '任务状态（0-关闭, 1-开启）',
+    isDelete   tinyint  default 0                 not null comment '是否删除（0-正常, 1-删除）',
+    editTime   datetime default CURRENT_TIMESTAMP not null comment '编辑时间',
+    createTime datetime default CURRENT_TIMESTAMP not null comment '创建时间',
+    updateTime datetime default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP comment '更新时间'
+)
+    comment '定时任务表' collate = utf8mb4_unicode_ci;
+
+ALTER TABLE scheduled_task
+    CHANGE COLUMN tasKey taskKey VARCHAR(255) NOT NULL COMMENT '任务 KEY（存在内存中）';

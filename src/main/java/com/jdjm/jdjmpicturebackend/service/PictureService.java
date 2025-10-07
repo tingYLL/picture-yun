@@ -49,6 +49,13 @@ public interface PictureService extends IService<Picture> {
     QueryWrapper<Picture> getQueryWrapper(PictureQueryRequest pictureQueryRequest);
 
     /**
+     * 获取查询对象
+     *
+     * @param pictureQueryRequest
+     * @return
+     */
+    QueryWrapper<Picture> getQueryWrapperMultiple(PictureQueryRequest pictureQueryRequest);
+    /**
      * 获取图片包装类（单条）
      *
      * @param picture
@@ -106,11 +113,18 @@ public interface PictureService extends IService<Picture> {
     void deletePicture(long pictureId, User loginUser);
 
     /**
-     * 清理图片文件
+     * 清理图片文件 (cos）
      *
      * @param oldPicture
      */
     void clearPictureFile(Picture oldPicture);
+
+    /**
+     * 清理图片文件 (cos）
+     *
+     * @param oldPicture
+     */
+    void clearPictureFileLocal(Picture oldPicture);
 
     /**
      * 根据颜色搜索图片
@@ -139,4 +153,14 @@ public interface PictureService extends IService<Picture> {
     CreateOutPaintingTaskResponse createPictureOutPaintingTask(CreatePictureOutPaintingTaskRequest createPictureOutPaintingTaskRequest, User loginUser);
 
     PictureVO getPictureDetailById(long id,HttpServletRequest request);
+
+    void pictureLikeOrCollect(PictureInteractionRequest pictureInteractionRequest,User user);
+
+    void pictureShare(Long pictureId);
+
+    String pictureDownload(Long pictureId);
+
+    Page<PictureVO> getPicturePageListAsHome(PictureQueryRequest pictureQueryRequest,HttpServletRequest request);
+
+    Page<PictureVO> getPicturePageListAsPersonRelease(PictureQueryRequest pictureQueryRequest,HttpServletRequest request);
 }

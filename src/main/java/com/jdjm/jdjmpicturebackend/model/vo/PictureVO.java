@@ -131,6 +131,33 @@ public class PictureVO implements Serializable {
      * 点赞数量
      */
     private Integer likeQuantity;
+    /**
+     * 登录用户是否点赞
+     */
+    private Boolean loginUserIsLike = false;
+    /**
+     * 登录用户是否收藏
+     */
+    private Boolean loginUserIsCollect = false;
+    /**
+     * 审核状态：0-待审核; 1-通过; 2-拒绝
+     */
+    private Integer reviewStatus;
+
+    /**
+     * 审核信息
+     */
+    private String reviewMessage;
+
+    /**
+     * 审核人 ID
+     */
+    private Long reviewerId;
+
+    /**
+     * 审核时间
+     */
+    private Date reviewTime;
 
     /**
      * 收藏数量

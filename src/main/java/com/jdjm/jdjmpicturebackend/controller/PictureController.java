@@ -2,6 +2,7 @@ package com.jdjm.jdjmpicturebackend.controller;
 
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
@@ -29,6 +30,8 @@ import com.jdjm.jdjmpicturebackend.model.dto.picture.*;
 import com.jdjm.jdjmpicturebackend.model.entity.Picture;
 import com.jdjm.jdjmpicturebackend.model.entity.Space;
 import com.jdjm.jdjmpicturebackend.model.entity.User;
+import com.jdjm.jdjmpicturebackend.model.enums.PictureInteractionStatusEnum;
+import com.jdjm.jdjmpicturebackend.model.enums.PictureInteractionTypeEnum;
 import com.jdjm.jdjmpicturebackend.model.enums.PictureReviewStatusEnum;
 import com.jdjm.jdjmpicturebackend.model.vo.PictureTagCategory;
 import com.jdjm.jdjmpicturebackend.model.vo.PictureVO;
@@ -125,6 +128,18 @@ public class PictureController {
         return ResultUtils.success(pictureVO);
     }
 
+    /**
+     * 获取个人发布的图片分页列表
+     *
+     * @param pictureQueryRequest 图片查询请求
+     * @return 个人发布的图片分页列表
+     */
+    @PostMapping("/personRelease/page")
+    public BaseResponse<Page<PictureVO>> getPicturePageListAsPersonRelease(@RequestBody PictureQueryRequest pictureQueryRequest,HttpServletRequest request) {
+        Page<PictureVO> picturePageVO = pictureService.getPicturePageListAsPersonRelease(pictureQueryRequest,request);
+        return ResultUtils.success(picturePageVO);
+    }
+
 
     /**
      * 删除图片
@@ -209,7 +224,7 @@ public class PictureController {
         long current = pictureQueryRequest.getCurrent();
         long size = pictureQueryRequest.getPageSize();
         Page<Picture> picturePage = pictureService.page(new Page<>(current, size),
-                pictureService.getQueryWrapper(pictureQueryRequest));
+                pictureService.getQueryWrapperMultiple(pictureQueryRequest));
         Page<PictureVO> pictureVOPage = pictureService.getPictureVOPage(picturePage, request);
         return ResultUtils.success(pictureVOPage);
     }
@@ -226,28 +241,23 @@ public class PictureController {
         // 限制爬虫
         ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR,"访问量过大！");
         Long spaceId = pictureQueryRequest.getSpaceId();
+        Page<PictureVO> pictureVOPage = null;
         //如果spaceId 为空 ，只能查看公共图库
         if(spaceId == null){
             //普通用户默认只能查看到审核通过的数据
             pictureQueryRequest.setReviewStatus(PictureReviewStatusEnum.PASS.getValue());
             pictureQueryRequest.setNullSpaceId(true);
+            //首页图片走缓存
+            pictureVOPage = pictureService.getPicturePageListAsHome(pictureQueryRequest,request);
         }else{
-            //私有空间
+            //私有空间不走缓存
             boolean hasPermission = StpKit.SPACE.hasPermission(SpaceUserPermissionConstant.PICTURE_VIEW);
             ThrowUtils.throwIf(!hasPermission,ErrorCode.NO_AUTH_ERROR);
-            //已经改为sa-token鉴权
-//            User loginUser = userService.getLoginUser(request);
-//            Space space = spaceService.getById(spaceId);
-//            ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR,"空间不存在");
-//            if(!loginUser.getId().equals(space.getUserId())){
-//                throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "没有空间权限");
-//            }
+            Page<Picture> picturePage = pictureService.page(new Page<>(current, size),
+                    pictureService.getQueryWrapperMultiple(pictureQueryRequest));
+            pictureVOPage = pictureService.getPictureVOPage(picturePage, request);
         }
-        // 查询数据库
-        Page<Picture> picturePage = pictureService.page(new Page<>(current, size),
-                pictureService.getQueryWrapper(pictureQueryRequest));
-        // 获取封装类
-        return ResultUtils.success(pictureService.getPictureVOPage(picturePage, request));
+        return ResultUtils.success(pictureVOPage);
     }
 
     /**
@@ -381,6 +391,63 @@ public class PictureController {
         User loginUser = userService.getLoginUser(request);
         pictureService.editPictureByBatch(pictureEditByBatchRequest, loginUser);
         return ResultUtils.success(true);
+    }
+
+    /**
+     * 图片点赞
+     *
+     * @param pictureInteractionRequest 图片互动请求
+     */
+//    @Limit(key = "PictureLike:", time = 5, count = 2, limitType = LimitType.IP, errMsg = "图片点赞太频繁，请稍后再试!")
+    @PostMapping("/interaction")
+    public BaseResponse<Boolean> pictureLikeOrCollect(@RequestBody PictureInteractionRequest pictureInteractionRequest,HttpServletRequest request) {
+        User loginUser = userService.getLoginUser(request);
+        ThrowUtils.throwIf(pictureInteractionRequest == null, ErrorCode.PARAMS_ERROR);
+        ThrowUtils.throwIf(ObjectUtil.isEmpty(pictureInteractionRequest.getPictureId()), ErrorCode.PARAMS_ERROR);
+        ThrowUtils.throwIf(ObjectUtil.isEmpty(pictureInteractionRequest.getInteractionType()), ErrorCode.PARAMS_ERROR);
+        ThrowUtils.throwIf(ObjectUtil.isEmpty(pictureInteractionRequest.getInteractionStatus()), ErrorCode.PARAMS_ERROR);
+        Integer interactionType = pictureInteractionRequest.getInteractionType();
+        if (!PictureInteractionTypeEnum.LIKE.getKey().equals(interactionType)
+                && !PictureInteractionTypeEnum.COLLECT.getKey().equals(interactionType)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "图片互动类型错误!");
+        }
+        Integer interactionStatus = pictureInteractionRequest.getInteractionStatus();
+        if (!PictureInteractionStatusEnum.keys().contains(interactionStatus)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "图片互动状态错误!");
+        }
+        pictureService.pictureLikeOrCollect(pictureInteractionRequest,loginUser);
+        return ResultUtils.success(true);
+    }
+
+    /**
+     * 图片分享
+     *
+     * @param pictureInteractionRequest 图片互动请求
+     */
+//    @Limit(key = "PictureShare:", time = 5, count = 1, limitType = LimitType.IP, errMsg = "图片分享太频繁，请稍后再试!")
+    @PostMapping("/share")
+    public BaseResponse<Boolean> pictureShare(@RequestBody PictureInteractionRequest pictureInteractionRequest) {
+        ThrowUtils.throwIf(pictureInteractionRequest == null, ErrorCode.PARAMS_ERROR);
+        Long pictureId = pictureInteractionRequest.getPictureId();
+        ThrowUtils.throwIf(ObjectUtil.isEmpty(pictureId), ErrorCode.PARAMS_ERROR);
+        pictureService.pictureShare(pictureId);
+        return ResultUtils.success(true);
+    }
+
+
+    /**
+     * 图片下载
+     *
+     * @param pictureInteractionRequest 图片互动请求
+     * @return 原图地址
+     */
+//    @Limit(key = "PictureDownload:", count = 1, limitType = LimitType.IP, errMsg = "图片下载太频繁，请稍后再试!")
+    @PostMapping("/download")
+    public BaseResponse<String> pictureDownload(@RequestBody PictureInteractionRequest pictureInteractionRequest) {
+        ThrowUtils.throwIf(pictureInteractionRequest == null, ErrorCode.PARAMS_ERROR);
+        Long pictureId = pictureInteractionRequest.getPictureId();
+        ThrowUtils.throwIf(ObjectUtil.isEmpty(pictureId), ErrorCode.PARAMS_ERROR);
+        return ResultUtils.success(pictureService.pictureDownload(pictureId));
     }
 
     /**
