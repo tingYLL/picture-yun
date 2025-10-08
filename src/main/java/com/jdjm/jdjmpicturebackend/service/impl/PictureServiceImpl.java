@@ -145,7 +145,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
             ThrowUtils.throwIf(url.length() > 1024, ErrorCode.PARAMS_ERROR, "url 过长");
         }
         if (StrUtil.isNotBlank(introduction)) {
-            ThrowUtils.throwIf(introduction.length() > 800, ErrorCode.PARAMS_ERROR, "简介过长");
+            ThrowUtils.throwIf(introduction.length() > 300, ErrorCode.PARAMS_ERROR, "简介过长");
         }
     }
 
@@ -948,12 +948,18 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         // 补充审核参数
         this.fillReviewParams(picture, loginUser);
         // 操作数据库
-        boolean result = this.updateById(picture);
-        if(CollUtil.isEmpty(pictureEditRequest.getTags())){
-            LambdaUpdateWrapper<Picture> lambdaUpdateWrapper = new LambdaUpdateWrapper<>();
-            lambdaUpdateWrapper.eq(Picture::getId,picture.getId()).set(Picture::getTags,null);
-            this.update(lambdaUpdateWrapper);
-        }
+//        boolean result = this.updateById(picture);
+        boolean result = lambdaUpdate().eq(Picture::getId, pictureEditRequest.getId())
+                .set(Picture::getName, pictureEditRequest.getName())
+                .set(Picture::getCategoryId, pictureEditRequest.getCategoryId())
+                .set(Picture::getTags, picture.getTags())
+                .set(Picture::getIntroduction, pictureEditRequest.getIntroduction())
+                .set(Picture::getEditTime, new Date()).update();
+//        if(CollUtil.isEmpty(pictureEditRequest.getTags())){
+//            LambdaUpdateWrapper<Picture> lambdaUpdateWrapper = new LambdaUpdateWrapper<>();
+//            lambdaUpdateWrapper.eq(Picture::getId,picture.getId()).set(Picture::getTags,null);
+//            this.update(lambdaUpdateWrapper);
+//        }
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         //清理首页图片缓存
         if(oldPicture.getSpaceId()==null){
@@ -1117,6 +1123,21 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
                     permissionList.add(SpaceUserPermissionConstant.PICTURE_EDIT);
                     permissionList.add(SpaceUserPermissionConstant.PICTURE_DELETE);
                 }
+                //查询用户与这张图片的交互信息
+                List<PictureInteraction> pictureInteractions = pictureInteractionService.lambdaQuery().eq(PictureInteraction::getUserId, currentUser.getId())
+                        .eq(PictureInteraction::getPictureId, id).list();
+                if(CollUtil.isNotEmpty(pictureInteractions)){
+                    for (PictureInteraction p : pictureInteractions) {
+                        if (PictureInteractionTypeEnum.LIKE.getKey().equals(p.getInteractionType()) &&
+                                PictureInteractionStatusEnum.isExisted(p.getInteractionStatus())) {
+                            pictureVO.setLoginUserIsLike(true);
+                        }
+                        if (PictureInteractionTypeEnum.COLLECT.getKey().equals(p.getInteractionType()) &&
+                                PictureInteractionStatusEnum.isExisted(p.getInteractionStatus())) {
+                            pictureVO.setLoginUserIsCollect(true);
+                        }
+                    }
+                }
             }else{
                 Space space = spaceService.getById(spaceId);
                 ThrowUtils.throwIf(space == null,ErrorCode.NOT_FOUND_ERROR,"空间不存在");
@@ -1134,6 +1155,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
             //填充交互数据给VO
             this.fillPictureInteraction(pictureVO);
         }
+
         return pictureVO;
     }
 
