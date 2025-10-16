@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jdjm.jdjmpicturebackend.mapper.DownloadLogMapper">
+
+    <!-- 根据用户ID和时间范围查询下载历史记录 -->
+    <select id="listDownloadHistoryByUserIdAndTimeRange" resultType="com.jdjm.jdjmpicturebackend.model.entity.DownloadLog">
+        SELECT dl.* FROM download_logs dl
+        INNER JOIN picture p ON dl.file_id = p.id
+        WHERE dl.user_id = #{userId} AND p.is_delete = 0
+        <if test="startTime != null">
+            AND dl.downloaded_at >= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND dl.downloaded_at &lt;= #{endTime}
+        </if>
+        ORDER BY dl.downloaded_at DESC
+    </select>
+
+    <!-- 分页根据用户ID和时间范围查询下载历史记录 -->
+    <select id="listDownloadHistoryByUserIdAndTimeRangePage" resultType="com.jdjm.jdjmpicturebackend.model.entity.DownloadLog">
+        SELECT dl.id,dl.user_id as userId,dl.file_id as fileId,dl.downloaded_at as downloadedAt
+        FROM download_logs dl
+        INNER JOIN picture p ON dl.file_id = p.id
+        WHERE dl.user_id = #{userId} AND p.isDelete = 0
+        <if test="startTime != null">
+            AND dl.downloaded_at >= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND dl.downloaded_at &lt;= #{endTime}
+        </if>
+        ORDER BY dl.downloaded_at DESC
+    </select>
+
+</mapper>

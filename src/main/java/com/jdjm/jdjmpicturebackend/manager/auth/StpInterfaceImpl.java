@@ -173,7 +173,7 @@ public class StpInterfaceImpl implements StpInterface {
         SpaceUserAuthContext authRequest;
         // 获取请求参数
         if (ContentType.JSON.getValue().equals(contentType)) {
-            //HtppServletRequest 的body值是个流，只支持读取一次，读完就没了！所以为了解决这个问题，我们还要在config包下自定义请求包装类和请求包装类过滤器
+            //HtppServletRequest 的body值是个流，只支持读取一次，读完就没了！为了解决这个问题，在config包下自定义请求包装类和请求包装类过滤器
             String body = ServletUtil.getBody(request);
             authRequest = JSONUtil.toBean(body, SpaceUserAuthContext.class);
         } else {

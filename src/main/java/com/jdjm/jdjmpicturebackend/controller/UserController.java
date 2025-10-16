@@ -28,7 +28,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/user")
 public class UserController {
-
     @Resource
     private UserService userService;
 
@@ -242,6 +241,23 @@ public class UserController {
         List<UserVO> userVOList = userService.getUserVOList(userPage.getRecords());
         userVOPage.setRecords(userVOList);
         return ResultUtils.success(userVOPage);
+    }
+
+    /**
+     * 兑换码兑换余额
+     */
+    @PostMapping("/redeemCode")
+    public BaseResponse<String> redeemCode(@RequestParam String code, HttpServletRequest request) {
+        ThrowUtils.throwIf(StrUtil.isBlank(code), ErrorCode.PARAMS_ERROR, "兑换码不能为空");
+        User loginUser = userService.getLoginUser(request);
+        // 兑换码为 "jdjm"，兑换成功增加 10 元）
+        if ("jdjm".equals(code)) {
+            loginUser.setBalance(loginUser.getBalance() + 10);
+            userService.updateById(loginUser);
+            return ResultUtils.success("兑换成功");
+        } else {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "无效的兑换码");
+        }
     }
 
 }

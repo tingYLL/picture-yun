@@ -1123,27 +1123,27 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
                     permissionList.add(SpaceUserPermissionConstant.PICTURE_EDIT);
                     permissionList.add(SpaceUserPermissionConstant.PICTURE_DELETE);
                 }
-                //查询用户与这张图片的交互信息
-                List<PictureInteraction> pictureInteractions = pictureInteractionService.lambdaQuery().eq(PictureInteraction::getUserId, currentUser.getId())
-                        .eq(PictureInteraction::getPictureId, id).list();
-                if(CollUtil.isNotEmpty(pictureInteractions)){
-                    for (PictureInteraction p : pictureInteractions) {
-                        if (PictureInteractionTypeEnum.LIKE.getKey().equals(p.getInteractionType()) &&
-                                PictureInteractionStatusEnum.isExisted(p.getInteractionStatus())) {
-                            pictureVO.setLoginUserIsLike(true);
-                        }
-                        if (PictureInteractionTypeEnum.COLLECT.getKey().equals(p.getInteractionType()) &&
-                                PictureInteractionStatusEnum.isExisted(p.getInteractionStatus())) {
-                            pictureVO.setLoginUserIsCollect(true);
-                        }
-                    }
-                }
             }else{
                 Space space = spaceService.getById(spaceId);
                 ThrowUtils.throwIf(space == null,ErrorCode.NOT_FOUND_ERROR,"空间不存在");
                 permissionList = spaceUserAuthManager.getPermissionList(space,currentUser);
                 if(permissionList.size() == 0)
                     throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
+            }
+            //查询用户与这张图片的交互信息
+            List<PictureInteraction> pictureInteractions = pictureInteractionService.lambdaQuery().eq(PictureInteraction::getUserId, currentUser.getId())
+                    .eq(PictureInteraction::getPictureId, id).list();
+            if(CollUtil.isNotEmpty(pictureInteractions)){
+                for (PictureInteraction p : pictureInteractions) {
+                    if (PictureInteractionTypeEnum.LIKE.getKey().equals(p.getInteractionType()) &&
+                            PictureInteractionStatusEnum.isExisted(p.getInteractionStatus())) {
+                        pictureVO.setLoginUserIsLike(true);
+                    }
+                    if (PictureInteractionTypeEnum.COLLECT.getKey().equals(p.getInteractionType()) &&
+                            PictureInteractionStatusEnum.isExisted(p.getInteractionStatus())) {
+                        pictureVO.setLoginUserIsCollect(true);
+                    }
+                }
             }
             pictureVO.setPermissionList(permissionList);
         }
@@ -1411,6 +1411,96 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
                 pictureVO.setViewQuantity(Integer.parseInt(interactions.get("4").toString()));
             }
         }
+    }
+
+    @Override
+    public Page<PictureVO> getMyCollectPicturePage(PictureQueryRequest pictureQueryRequest, User loginUser) {
+        // 1. 校验参数
+        ThrowUtils.throwIf(loginUser == null, ErrorCode.NO_AUTH_ERROR);
+        long current = pictureQueryRequest.getCurrent();
+        long size = pictureQueryRequest.getPageSize();
+
+        // 2. 查询当前用户收藏的图片交互记录,按收藏时间倒序
+        Page<PictureInteraction> interactionPage = pictureInteractionService.lambdaQuery()
+                .eq(PictureInteraction::getUserId, loginUser.getId())
+                .eq(PictureInteraction::getInteractionType, PictureInteractionTypeEnum.COLLECT.getKey())
+                .eq(PictureInteraction::getInteractionStatus, PictureInteractionStatusEnum.EXISTED.getKey())
+                .orderByDesc(PictureInteraction::getCreateTime)
+                .page(new Page<>(current, size));
+
+        // 3. 如果没有收藏记录,直接返回空页面
+        List<PictureInteraction> interactionList = interactionPage.getRecords();
+        if (CollUtil.isEmpty(interactionList)) {
+            return new Page<>(current, size, 0);
+        }
+
+        // 4. 获取图片ID列表
+        List<Long> pictureIds = interactionList.stream()
+                .map(PictureInteraction::getPictureId)
+                .collect(Collectors.toList());
+
+        // 5. 查询图片信息
+        List<Picture> pictureList = this.listByIds(pictureIds);
+        if (CollUtil.isEmpty(pictureList)) {
+            return new Page<>(current, size, 0);
+        }
+
+        // 6. 将图片列表按照收藏时间的顺序排序
+        // 创建图片ID到图片对象的映射
+        Map<Long, Picture> pictureMap = pictureList.stream()
+                .collect(Collectors.toMap(Picture::getId, picture -> picture));
+
+        // 按照收藏记录的顺序重新排列图片列表
+        List<Picture> sortedPictureList = interactionList.stream()
+                .map(interaction -> pictureMap.get(interaction.getPictureId()))
+                .filter(picture -> picture != null)
+                .collect(Collectors.toList());
+
+        // 7. 转换为 PictureVO 列表
+        List<PictureVO> pictureVOList = sortedPictureList.stream()
+                .map(PictureVO::objToVo)
+                .collect(Collectors.toList());
+
+        // 8. 填充分类信息
+        Set<Long> categoryIds = pictureVOList.stream()
+                .map(PictureVO::getCategoryId)
+                .filter(categoryId -> categoryId != null)
+                .collect(Collectors.toSet());
+        if (CollUtil.isNotEmpty(categoryIds)) {
+            List<Category> categoryList = categoryService.listByIds(categoryIds);
+            Map<Long, Category> categoryMap = categoryList.stream()
+                    .collect(Collectors.toMap(Category::getId, category -> category));
+            pictureVOList.forEach(pictureVO -> {
+                Long categoryId = pictureVO.getCategoryId();
+                if (categoryId != null && categoryMap.containsKey(categoryId)) {
+                    pictureVO.setCategoryInfo(categoryMap.get(categoryId));
+                }
+            });
+        }
+
+        // 9. 填充用户信息
+        Set<Long> userIdSet = pictureVOList.stream()
+                .map(PictureVO::getUserId)
+                .collect(Collectors.toSet());
+        Map<Long, User> userMap = userService.listByIds(userIdSet).stream()
+                .collect(Collectors.toMap(User::getId, user -> user));
+
+        pictureVOList.forEach(pictureVO -> {
+            Long userId = pictureVO.getUserId();
+            if (userMap.containsKey(userId)) {
+                pictureVO.setUser(userService.getUserVO(userMap.get(userId)));
+            }
+            // 设置收藏状态为true(因为这是收藏列表)
+            pictureVO.setLoginUserIsCollect(true);
+            // 填充图片互动数据
+            fillPictureInteraction(pictureVO);
+        });
+
+        // 10. 构建返回的分页对象
+        Page<PictureVO> pictureVOPage = new Page<>(current, size, interactionPage.getTotal());
+        pictureVOPage.setRecords(pictureVOList);
+
+        return pictureVOPage;
     }
 }
 

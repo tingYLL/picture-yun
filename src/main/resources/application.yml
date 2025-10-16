@@ -92,3 +92,7 @@ image:
 #    region: xxx
 #    bucket: xxx
 
+# 阿里云AI配置
+aliYunAi:
+  apiKey: your-api-key-here
+

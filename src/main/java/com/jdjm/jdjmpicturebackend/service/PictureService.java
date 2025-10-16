@@ -154,6 +154,11 @@ public interface PictureService extends IService<Picture> {
 
     PictureVO getPictureDetailById(long id,HttpServletRequest request);
 
+    /**
+     * 图片点赞、收藏
+     *
+     * @param pictureInteractionRequest 图片互动请求
+     */
     void pictureLikeOrCollect(PictureInteractionRequest pictureInteractionRequest,User user);
 
     void pictureShare(Long pictureId);
@@ -163,4 +168,15 @@ public interface PictureService extends IService<Picture> {
     Page<PictureVO> getPicturePageListAsHome(PictureQueryRequest pictureQueryRequest,HttpServletRequest request);
 
     Page<PictureVO> getPicturePageListAsPersonRelease(PictureQueryRequest pictureQueryRequest,HttpServletRequest request);
+
+    public void updateInteractionNumByRedis(Long pictureId, Integer interactionType, int num);
+
+    /**
+     * 获取我的收藏列表
+     *
+     * @param pictureQueryRequest 图片查询请求
+     * @param loginUser 当前登录用户
+     * @return 收藏的图片分页列表
+     */
+    Page<PictureVO> getMyCollectPicturePage(PictureQueryRequest pictureQueryRequest, User loginUser);
 }

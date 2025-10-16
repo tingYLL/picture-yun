@@ -17,6 +17,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import java.io.File;
 import java.util.Arrays;
 import java.util.Date;
@@ -29,6 +32,7 @@ import java.util.List;
 @Deprecated
 @Slf4j
 @Service
+@ConditionalOnBean(CosClientConfig.class)
 public class FileManager {
 
     @Resource

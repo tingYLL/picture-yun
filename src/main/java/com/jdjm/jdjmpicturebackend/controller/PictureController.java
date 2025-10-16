@@ -394,7 +394,7 @@ public class PictureController {
     }
 
     /**
-     * 图片点赞
+     * 图片点赞、收藏
      *
      * @param pictureInteractionRequest 图片互动请求
      */
@@ -420,6 +420,21 @@ public class PictureController {
     }
 
     /**
+     * 获取我的收藏列表
+     *
+     * @param pictureQueryRequest 图片查询请求
+     * @param request HTTP请求对象
+     * @return 我的收藏图片分页列表
+     */
+    @PostMapping("/my/collect/list")
+    @AuthCheck
+    public BaseResponse<Page<PictureVO>> getMyCollectPictureList(@RequestBody PictureQueryRequest pictureQueryRequest, HttpServletRequest request) {
+        User loginUser = userService.getLoginUser(request);
+        Page<PictureVO> pictureVOPage = pictureService.getMyCollectPicturePage(pictureQueryRequest, loginUser);
+        return ResultUtils.success(pictureVOPage);
+    }
+
+    /**
      * 图片分享
      *
      * @param pictureInteractionRequest 图片互动请求
@@ -442,13 +457,13 @@ public class PictureController {
      * @return 原图地址
      */
 //    @Limit(key = "PictureDownload:", count = 1, limitType = LimitType.IP, errMsg = "图片下载太频繁，请稍后再试!")
-    @PostMapping("/download")
-    public BaseResponse<String> pictureDownload(@RequestBody PictureInteractionRequest pictureInteractionRequest) {
-        ThrowUtils.throwIf(pictureInteractionRequest == null, ErrorCode.PARAMS_ERROR);
-        Long pictureId = pictureInteractionRequest.getPictureId();
-        ThrowUtils.throwIf(ObjectUtil.isEmpty(pictureId), ErrorCode.PARAMS_ERROR);
-        return ResultUtils.success(pictureService.pictureDownload(pictureId));
-    }
+//    @PostMapping("/download")
+//    public BaseResponse<String> pictureDownload(@RequestBody PictureInteractionRequest pictureInteractionRequest) {
+//        ThrowUtils.throwIf(pictureInteractionRequest == null, ErrorCode.PARAMS_ERROR);
+//        Long pictureId = pictureInteractionRequest.getPictureId();
+//        ThrowUtils.throwIf(ObjectUtil.isEmpty(pictureId), ErrorCode.PARAMS_ERROR);
+//        return ResultUtils.success(pictureService.pictureDownload(pictureId));
+//    }
 
     /**
      * 创建 AI 扩图任务

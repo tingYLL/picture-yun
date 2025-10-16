@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jdjm.jdjmpicturebackend.model.dto.task.ScheduledTaskQueryRequest;
 import com.jdjm.jdjmpicturebackend.model.entity.ScheduledTask;
 import com.jdjm.jdjmpicturebackend.model.vo.ScheduledTaskVO;
-import generator.domain.scheduled_task;
 import com.baomidou.mybatisplus.extension.service.IService;
 
 /**

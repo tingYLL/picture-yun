@@ -93,6 +93,12 @@ public class User implements Serializable {
      * 邀请用户 ID
      */
     private Long inviteUserId;
+
+    /**
+     * 用户余额（单位：分）
+     */
+    private Integer balance = 0;
+
     /**
      * 是否禁用（0-正常, 1-禁用）
      */

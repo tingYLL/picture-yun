@@ -204,3 +204,39 @@ create table scheduled_task
 
 ALTER TABLE scheduled_task
     CHANGE COLUMN tasKey taskKey VARCHAR(255) NOT NULL COMMENT '任务 KEY（存在内存中）';
+
+-- VIP会员表
+CREATE TABLE IF NOT EXISTS vip_memberships (
+                                               id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                                               user_id BIGINT NOT NULL,
+                                               is_vip BOOLEAN DEFAULT FALSE,
+                                               vip_start_date TIMESTAMP NULL,
+                                               vip_end_date TIMESTAMP NULL,
+                                               created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                               updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- VIP兑换码表
+CREATE TABLE IF NOT EXISTS vip_redemption_codes (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
+  code VARCHAR(64) NOT NULL COMMENT '兑换码',
+  is_used TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否已使用',
+  user_id BIGINT DEFAULT NULL COMMENT '使用兑换码的用户ID',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  UNIQUE KEY uk_code (code),
+  KEY idx_user_id (user_id)
+)comment 'VIP兑换码' collate = utf8mb4_unicode_ci;
+
+ALTER TABLE vip_redemption_codes ADD COLUMN used_at DATETIME NULL COMMENT '使用时间';
+
+
+-- 下载记录表
+CREATE TABLE IF NOT EXISTS download_logs (
+                                             id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                                             user_id BIGINT NOT NULL,
+                                             file_id BIGINT NOT NULL,
+                                             downloaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER  TABLE  user ADD COLUMN  balance  tinyint      default 0                 not null comment '余额';
