@@ -113,6 +113,14 @@ public interface PictureService extends IService<Picture> {
     void deletePicture(long pictureId, User loginUser);
 
     /**
+     * 批量删除图片
+     *
+     * @param pictureIds 图片ID列表
+     * @param loginUser 当前登录用户
+     */
+    void deletePictureByBatch(List<Long> pictureIds, User loginUser);
+
+    /**
      * 清理图片文件 (cos）
      *
      * @param oldPicture

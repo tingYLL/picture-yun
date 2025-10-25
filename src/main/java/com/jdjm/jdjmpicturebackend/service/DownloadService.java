@@ -11,8 +11,18 @@ import java.util.List;
 public interface DownloadService extends IService<DownloadLog> {
 
 
+    /**
+     * 判断是否满足下载条件
+     * @param userId
+     * @return
+     */
     boolean canDownload(Long userId);
 
+    /**
+     * 获取用户当天剩余下载次数（只有下载公共图库的图片才会消耗次数
+     * @param userId
+     * @return
+     */
     int getRemainingDownloads(Long userId);
 
     void logDownload(Long userId, Long fileId);

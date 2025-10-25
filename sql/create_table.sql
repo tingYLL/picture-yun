@@ -30,7 +30,6 @@ ALTER TABLE user
     ADD COLUMN vipNnumber      bigint                                null comment '会员编号',
     ADD COLUMN vipExpireTime datetime                              null comment '会员过期时间',
     ADD COLUMN vipCode        varchar(20)                           null comment '会员兑换码',
-    ADD COLUMN vipSign        varchar(20)                           null comment '会员标识（vip 表的类型字段）',
     ADD COLUMN shareCode      varchar(20)                           null comment '分享码',
     ADD COLUMN inviteUserId  bigint                                null comment '邀请用户 ID';
 
@@ -238,5 +237,8 @@ CREATE TABLE IF NOT EXISTS download_logs (
                                              file_id BIGINT NOT NULL,
                                              downloaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 为 download_logs 表添加 space_id 字段
+ALTER TABLE download_logs ADD COLUMN space_id BIGINT NULL COMMENT '空间 id（为 null 表示公共图库）';
 
 ALTER  TABLE  user ADD COLUMN  balance  tinyint      default 0                 not null comment '余额';

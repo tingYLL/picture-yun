@@ -8,6 +8,7 @@ import com.jdjm.jdjmpicturebackend.exception.ThrowUtils;
 import com.jdjm.jdjmpicturebackend.model.dto.vip.RedeemCodeRequest;
 import com.jdjm.jdjmpicturebackend.model.entity.User;
 import com.jdjm.jdjmpicturebackend.model.entity.VIPRedemptionCode;
+import com.jdjm.jdjmpicturebackend.model.vo.VIPInfoVO;
 import com.jdjm.jdjmpicturebackend.service.UserService;
 import com.jdjm.jdjmpicturebackend.service.VIPRedemptionCodeService;
 import com.jdjm.jdjmpicturebackend.service.VIPService;
@@ -30,9 +31,15 @@ public class VIPController {
     @Resource
     private VIPRedemptionCodeService vipRedemptionCodeService;
 
+    /**
+     * 获取用户 VIP 状态和详细信息
+     * @param userId 用户ID
+     * @return VIP 信息（包含是否是 VIP、到期时间、剩余天数等）
+     */
     @GetMapping("/status")
-    public BaseResponse<Boolean> checkVIPStatus(@RequestParam Long userId) {
-        return ResultUtils.success(vipService.isVIP(userId));
+    public BaseResponse<VIPInfoVO> checkVIPStatus(@RequestParam Long userId) {
+        VIPInfoVO vipInfo = vipService.getVIPInfo(userId);
+        return ResultUtils.success(vipInfo);
     }
 
     /**

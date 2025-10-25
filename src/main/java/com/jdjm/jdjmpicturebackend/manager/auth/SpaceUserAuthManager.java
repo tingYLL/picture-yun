@@ -6,11 +6,13 @@ import cn.hutool.json.JSONUtil;
 import com.jdjm.jdjmpicturebackend.manager.auth.model.SpaceUserAuthConfig;
 import com.jdjm.jdjmpicturebackend.manager.auth.model.SpaceUserPermissionConstant;
 import com.jdjm.jdjmpicturebackend.manager.auth.model.SpaceUserRole;
+import com.jdjm.jdjmpicturebackend.model.entity.Picture;
 import com.jdjm.jdjmpicturebackend.model.entity.Space;
 import com.jdjm.jdjmpicturebackend.model.entity.SpaceUser;
 import com.jdjm.jdjmpicturebackend.model.entity.User;
 import com.jdjm.jdjmpicturebackend.model.enums.SpaceRoleEnum;
 import com.jdjm.jdjmpicturebackend.model.enums.SpaceTypeEnum;
+import com.jdjm.jdjmpicturebackend.service.SpaceService;
 import com.jdjm.jdjmpicturebackend.service.SpaceUserService;
 import com.jdjm.jdjmpicturebackend.service.UserService;
 
@@ -32,6 +34,9 @@ public class SpaceUserAuthManager {
 
     @Resource
     private SpaceUserService spaceUserService;
+
+    @Resource
+    private SpaceService spaceService;
 
     public static final SpaceUserAuthConfig SPACE_USER_AUTH_CONFIG;
 
@@ -108,5 +113,42 @@ public class SpaceUserAuthManager {
                 }
         }
         return new ArrayList<>();
+    }
+
+    /**
+     * 检查用户对指定图片是否拥有某项权限
+     *
+     * @param picture 图片对象
+     * @param loginUser 当前登录用户
+     * @param permission 需要校验的权限
+     * @return 是否拥有该权限
+     */
+    public boolean checkPicturePermission(Picture picture, User loginUser, String permission) {
+        if (picture == null || loginUser == null) {
+            return false;
+        }
+
+        Long spaceId = picture.getSpaceId();
+        Space space = null;
+
+        // 如果图片属于某个空间，查询空间信息
+        if (spaceId != null) {
+            space = spaceService.getById(spaceId);
+        }
+
+        // 公共图库的图片，仅本人或管理员可操作
+        if (space == null) {
+            if (picture.getUserId().equals(loginUser.getId()) || userService.isAdmin(loginUser)) {
+                return true;
+            }
+            // 如果是查看权限，允许所有人查看
+            return SpaceUserPermissionConstant.PICTURE_VIEW.equals(permission);
+        }
+
+        // 获取用户在该空间的权限列表
+        List<String> permissions = getPermissionList(space, loginUser);
+
+        // 检查是否包含所需权限
+        return permissions.contains(permission);
     }
 }

@@ -80,11 +80,6 @@ public class User implements Serializable {
     private String vipCode;
 
     /**
-     * 会员标识（vip 表的类型字段）
-     */
-    private String vipSign;
-
-    /**
      * 分享码
      */
     private String shareCode;

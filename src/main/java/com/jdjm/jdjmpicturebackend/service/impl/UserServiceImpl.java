@@ -22,6 +22,7 @@ import com.jdjm.jdjmpicturebackend.model.vo.LoginUserVO;
 import com.jdjm.jdjmpicturebackend.model.vo.UserVO;
 import com.jdjm.jdjmpicturebackend.service.UserService;
 import com.jdjm.jdjmpicturebackend.mapper.UserMapper;
+import com.jdjm.jdjmpicturebackend.service.VIPService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataAccessException;
@@ -31,6 +32,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.io.File;
 import java.io.IOException;
@@ -63,6 +65,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     private String contextPath;
     @Value("${image.local.enable}")
     private Boolean isLocalStore;
+
+    @Resource
+    private VIPService vipService;
 //    @Resource
 //    private RedisTemplate<String, Object> redisTemplate;
 //    private RedisOperationsSessionRepository sessionRepository; // Spring Session提供的操作接口
@@ -121,7 +126,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
      * @return 脱敏后的用户信息
      */
     @Override
-    public LoginUserVO userLogin(String userAccount, String userPassword, HttpServletRequest request) {
+    public UserVO userLogin(String userAccount, String userPassword, HttpServletRequest request) {
         // 1. 校验
         if (StrUtil.hasBlank(userAccount, userPassword)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数为空");
@@ -159,7 +164,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         //记录用户登录态到Sa-token.便于空间鉴权时使用
         StpKit.SPACE.login(user.getId());
         StpKit.SPACE.getSession().set(UserConstant.USER_LOGIN_STATE, user);
-        return this.getLoginUserVO(user);
+        return this.getUserVO(user);
     }
 
     /**
@@ -202,6 +207,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
             //如果开启了本地存储，或者用户头像不是外链，那么需要拼接上本地存储路径
             userVO.setUserAvatar("http://localhost:"+port+contextPath+user.getUserAvatar());
         }
+        // 从 vip_memberships 表获取 VIP 状态
+        userVO.setIsVip(vipService.isVIP(user.getId()));
         return userVO;
     }
 

@@ -72,9 +72,9 @@ public class UserVO implements Serializable {
     private String vipCode;
 
     /**
-     * 会员标识（vip 表的类型字段）
+     * 是否为 VIP（从 vip_memberships 表计算得出）
      */
-    private String vipSign;
+    private Boolean isVip;
 
     /**
      * 分享码

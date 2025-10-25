@@ -22,9 +22,9 @@ public class PictureEditByBatchRequest implements Serializable {
     private Long spaceId;
 
     /**
-     * 分类
+     * 分类 ID
      */
-    private String category;
+    private Long categoryId;
 
     /**
      * 标签

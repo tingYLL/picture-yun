@@ -2,15 +2,19 @@ package com.jdjm.jdjmpicturebackend.service.impl;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.jdjm.jdjmpicturebackend.exception.ErrorCode;
+import com.jdjm.jdjmpicturebackend.exception.ThrowUtils;
 import com.jdjm.jdjmpicturebackend.mapper.DownloadLogMapper;
 import com.jdjm.jdjmpicturebackend.model.dto.download.DownloadRequest;
 import com.jdjm.jdjmpicturebackend.model.entity.DownloadLog;
+import com.jdjm.jdjmpicturebackend.model.entity.Space;
 import com.jdjm.jdjmpicturebackend.model.enums.PictureInteractionTypeEnum;
 import com.jdjm.jdjmpicturebackend.model.entity.Picture;
 import com.jdjm.jdjmpicturebackend.model.vo.DownloadHistoryVO;
 import com.jdjm.jdjmpicturebackend.model.vo.PictureVO;
 import com.jdjm.jdjmpicturebackend.service.DownloadService;
 import com.jdjm.jdjmpicturebackend.service.PictureService;
+import com.jdjm.jdjmpicturebackend.service.SpaceService;
 import com.jdjm.jdjmpicturebackend.service.VIPService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -34,6 +38,8 @@ public class DownloadServiceImpl extends ServiceImpl<DownloadLogMapper,DownloadL
 
     private static final int MAX_DAILY_DOWNLOADS_FOR_NORMAL_USER = 5;
     private static final int MAX_DAILY_DOWNLOADS_FOR_VIP_USER = 20;
+    @Autowired
+    private SpaceService spaceService;
 
     public boolean canDownload(Long userId) {
             return getRemainingDownloads(userId) > 0;
@@ -42,9 +48,8 @@ public class DownloadServiceImpl extends ServiceImpl<DownloadLogMapper,DownloadL
     public int getRemainingDownloads(Long userId) {
         LocalDateTime startOfDay = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0);
         LocalDateTime endOfDay = LocalDateTime.now().withHour(23).withMinute(59).withSecond(59);
-
-        //计算用户今天可用下载次数
-        long downloadsToday = downloadLogMapper.countDownloadsByUserAndDateRange(
+        // 统计用户当天剩余下载次数
+        long downloadsToday = downloadLogMapper.countPublicDownloadsByUserAndDateRange(
                 userId, startOfDay, endOfDay);
         boolean isVIP = vipService.isVIP(userId);
         //根据用户是否是会员，获取用户一天内可用的下载次
@@ -64,13 +69,19 @@ public class DownloadServiceImpl extends ServiceImpl<DownloadLogMapper,DownloadL
             return;
         }
 
+        // 获取图片信息，记录 spaceId
+        Picture picture = pictureService.getById(fileId);
+        ThrowUtils.throwIf(picture == null, ErrorCode.NOT_FOUND_ERROR, "图片不存在");
+        Long spaceId = picture.getSpaceId();
+
         DownloadLog downloadLog = new DownloadLog();
         downloadLog.setUserId(userId);
         downloadLog.setFileId(fileId);
+        downloadLog.setSpaceId(spaceId);
         downloadLog.setDownloadedAt(LocalDateTime.now());
         int count = downloadLogMapper.insert(downloadLog);
         //更新redis中的图片下载次数
-        if (count >0){
+        if (count > 0) {
             pictureService.updateInteractionNumByRedis(fileId, PictureInteractionTypeEnum.DOWNLOAD.getKey(), 1);
         }
     }

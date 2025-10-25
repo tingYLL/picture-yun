@@ -16,6 +16,7 @@ import com.jdjm.jdjmpicturebackend.api.aliyunai.model.GetOutPaintingTaskResponse
 import com.jdjm.jdjmpicturebackend.api.imagesearch.ImageSearchApiFacade;
 import com.jdjm.jdjmpicturebackend.api.imagesearch.model.ImageSearchResult;
 import com.jdjm.jdjmpicturebackend.common.BaseResponse;
+import com.jdjm.jdjmpicturebackend.common.DeleteBatchRequest;
 import com.jdjm.jdjmpicturebackend.common.DeleteRequest;
 import com.jdjm.jdjmpicturebackend.common.ResultUtils;
 import com.jdjm.jdjmpicturebackend.constant.UserConstant;
@@ -113,6 +114,44 @@ public class PictureController {
         return ResultUtils.success(pictureVO);
     }
 
+    /**
+     * 批量上传图片
+     */
+    @PostMapping("/upload/multi")
+    @SaSpaceCheckPermission(value = SpaceUserPermissionConstant.PICTURE_UPLOAD)
+    public BaseResponse<List<PictureVO>> uploadMultiplePictures(
+            @RequestPart("files") List<MultipartFile> multipartFiles,
+            PictureUploadRequest pictureUploadRequest,
+            HttpServletRequest request) {
+        // 参数校验
+        if (multipartFiles == null || multipartFiles.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "上传文件不能为空");
+        }
+        // 限制批量上传数量，防止滥用
+        if (multipartFiles.size() > 10) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "单次最多上传10张图片");
+        }
+
+        User loginUser = userService.getLoginUser(request);
+        List<PictureVO> pictureVOList = new ArrayList<>();
+
+        // 循环处理每个文件
+        for (MultipartFile file : multipartFiles) {
+            try {
+                // 本地存储
+                PictureVO pictureVO = pictureService.uploadLocal(file, pictureUploadRequest, loginUser);
+                pictureVOList.add(pictureVO);
+            } catch (Exception e) {
+                // 记录失败的文件名，继续处理其他文件
+                // 可以根据需求决定是全部失败还是部分成功
+                throw new BusinessException(ErrorCode.SYSTEM_ERROR,
+                    "文件 " + file.getOriginalFilename() + " 上传失败: " + e.getMessage());
+            }
+        }
+
+        return ResultUtils.success(pictureVOList);
+    }
+
 
     /**
      * 通过 URL 上传图片（可重新上传）
@@ -155,6 +194,22 @@ public class PictureController {
         }
         User loginUser = userService.getLoginUser(request);
        pictureService.deletePicture(deleteRequest.getId(),loginUser);
+        return ResultUtils.success(true);
+    }
+
+    /**
+     * 批量删除图片
+     * @param deleteBatchRequest 批量删除请求
+     * @param request HTTP请求对象
+     * @return 删除结果
+     */
+    @PostMapping("/delete/batch")
+    public BaseResponse<Boolean> deletePictureByBatch(@RequestBody DeleteBatchRequest deleteBatchRequest, HttpServletRequest request) {
+        if (deleteBatchRequest == null || deleteBatchRequest.getIds() == null || deleteBatchRequest.getIds().isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "图片ID列表不能为空");
+        }
+        User loginUser = userService.getLoginUser(request);
+        pictureService.deletePictureByBatch(deleteBatchRequest.getIds(), loginUser);
         return ResultUtils.success(true);
     }
 
@@ -274,6 +329,18 @@ public class PictureController {
         return ResultUtils.success(true);
     }
 
+    /**
+     * 批量编辑图片
+     */
+    @PostMapping("/edit/batch")
+    @SaSpaceCheckPermission(value = SpaceUserPermissionConstant.PICTURE_EDIT)
+    public BaseResponse<Boolean> editPictureByBatch(@RequestBody PictureEditByBatchRequest pictureEditByBatchRequest, HttpServletRequest request) {
+        ThrowUtils.throwIf(pictureEditByBatchRequest == null, ErrorCode.PARAMS_ERROR);
+        User loginUser = userService.getLoginUser(request);
+        pictureService.editPictureByBatch(pictureEditByBatchRequest, loginUser);
+        return ResultUtils.success(true);
+    }
+
 
     /**
      * 审核图片
@@ -381,17 +448,7 @@ public class PictureController {
         return ResultUtils.success(pictureVOList);
     }
 
-    /**
-     * 批量编辑图片
-     */
-    @PostMapping("/edit/batch")
-    @SaSpaceCheckPermission(value = SpaceUserPermissionConstant.PICTURE_EDIT)
-    public BaseResponse<Boolean> editPictureByBatch(@RequestBody PictureEditByBatchRequest pictureEditByBatchRequest, HttpServletRequest request) {
-        ThrowUtils.throwIf(pictureEditByBatchRequest == null, ErrorCode.PARAMS_ERROR);
-        User loginUser = userService.getLoginUser(request);
-        pictureService.editPictureByBatch(pictureEditByBatchRequest, loginUser);
-        return ResultUtils.success(true);
-    }
+
 
     /**
      * 图片点赞、收藏

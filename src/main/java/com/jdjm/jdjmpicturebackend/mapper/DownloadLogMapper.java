@@ -18,6 +18,16 @@ public interface DownloadLogMapper extends BaseMapper<DownloadLog> {
             @Param("endDate") LocalDateTime endDate
     );
 
+    /**
+     * 统计用户在指定时间范围内下载公共图库图片的次数（space_id 为 null）
+     */
+    @Select("SELECT COUNT(*) FROM download_logs WHERE user_id = #{userId} AND space_id IS NULL AND downloaded_at BETWEEN #{startDate} AND #{endDate}")
+    Long countPublicDownloadsByUserAndDateRange(
+            @Param("userId") Long userId,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
     @Select("SELECT COUNT(*) FROM download_logs WHERE user_id = #{userId} AND file_id = #{fileId} AND downloaded_at BETWEEN #{startDate} AND #{endDate}")
     Long countDownloadsByUserAndFileAndDateRange(
             @Param("userId") Long userId,

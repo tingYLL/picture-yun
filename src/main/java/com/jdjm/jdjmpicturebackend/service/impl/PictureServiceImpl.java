@@ -38,6 +38,7 @@ import com.jdjm.jdjmpicturebackend.model.entity.*;
 import com.jdjm.jdjmpicturebackend.model.enums.PictureInteractionStatusEnum;
 import com.jdjm.jdjmpicturebackend.model.enums.PictureInteractionTypeEnum;
 import com.jdjm.jdjmpicturebackend.model.enums.PictureReviewStatusEnum;
+import com.jdjm.jdjmpicturebackend.model.enums.UserRoleEnum;
 import com.jdjm.jdjmpicturebackend.model.vo.PictureVO;
 import com.jdjm.jdjmpicturebackend.model.vo.UserVO;
 import com.jdjm.jdjmpicturebackend.service.*;
@@ -831,6 +832,16 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
             // 操作数据库
             boolean result = this.removeById(pictureId);
             ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+            // 删除图片交互记录
+            long interactionCount = pictureInteractionService.lambdaQuery()
+                    .eq(PictureInteraction::getPictureId, pictureId)
+                    .count();
+            if (interactionCount > 0) {
+                boolean interactionDeleteResult = pictureInteractionService.lambdaUpdate()
+                        .eq(PictureInteraction::getPictureId, pictureId)
+                        .remove();
+                ThrowUtils.throwIf(!interactionDeleteResult, ErrorCode.OPERATION_ERROR, "删除图片交互记录失败");
+            }
             if(spaceId != null){
                 // 更新空间的使用额度，释放额度
                 boolean update = spaceService.lambdaUpdate()
@@ -855,6 +866,102 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         //清除redis中图片交互数据
         String key = CacheKeyConstant.PICTURE_INTERACTION_KEY_PREFIX + pictureId;
         redisTemplate.delete(key);
+    }
+
+    /**
+     * 批量删除图片
+     * @param pictureIds 图片ID列表
+     * @param loginUser 当前登录用户
+     */
+    @Override
+    public void deletePictureByBatch(List<Long> pictureIds, User loginUser) {
+        ThrowUtils.throwIf(CollUtil.isEmpty(pictureIds), ErrorCode.PARAMS_ERROR, "图片ID列表不能为空");
+        ThrowUtils.throwIf(loginUser == null, ErrorCode.NO_AUTH_ERROR, "用户未登录");
+
+        // 逐个校验每张图片的删除权限
+        List<Picture> picturesToDelete = new ArrayList<>();
+        for (Long pictureId : pictureIds) {
+            ThrowUtils.throwIf(pictureId == null || pictureId <= 0, ErrorCode.PARAMS_ERROR, "图片ID不合法");
+
+            // 查询图片信息
+            Picture picture = this.lambdaQuery()
+                    .eq(Picture::getId, pictureId)
+                    .select(Picture::getId, Picture::getSpaceId, Picture::getUserId, Picture::getPicSize, Picture::getUrl)
+                    .one();
+
+            ThrowUtils.throwIf(picture == null, ErrorCode.NOT_FOUND_ERROR, "图片ID " + pictureId + " 不存在");
+
+            // 编程式权限校验
+            boolean hasPermission = spaceUserAuthManager.checkPicturePermission(
+                    picture, loginUser, SpaceUserPermissionConstant.PICTURE_DELETE);
+
+            ThrowUtils.throwIf(!hasPermission, ErrorCode.NO_AUTH_ERROR,
+                    "没有权限删除图片ID: " + pictureId);
+
+            picturesToDelete.add(picture);
+        }
+
+        // 开启事务，批量删除
+        transactionTemplate.execute(status -> {
+            // 批量删除图片记录
+            boolean result = this.removeByIds(pictureIds);
+            ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "批量删除图片失败");
+
+            // 批量删除图片交互记录
+            long interactionCount = pictureInteractionService.lambdaQuery()
+                    .in(PictureInteraction::getPictureId, pictureIds)
+                    .count();
+            if (interactionCount > 0) {
+                boolean interactionDeleteResult = pictureInteractionService.lambdaUpdate()
+                        .in(PictureInteraction::getPictureId, pictureIds)
+                        .remove();
+                ThrowUtils.throwIf(!interactionDeleteResult, ErrorCode.OPERATION_ERROR, "批量删除图片交互记录失败");
+            }
+
+            // 按空间分组，更新空间使用额度
+            Map<Long, List<Picture>> spaceGroupMap = picturesToDelete.stream()
+                    .filter(p -> p.getSpaceId() != null)
+                    .collect(Collectors.groupingBy(Picture::getSpaceId));
+
+            for (Map.Entry<Long, List<Picture>> entry : spaceGroupMap.entrySet()) {
+                Long spaceId = entry.getKey();
+                List<Picture> pictures = entry.getValue();
+
+                // 计算该空间下删除的图片总大小
+                long totalSize = pictures.stream()
+                        .mapToLong(p -> p.getPicSize() != null ? p.getPicSize() : 0L)
+                        .sum();
+                int count = pictures.size();
+
+                // 更新空间的使用额度
+                boolean update = spaceService.lambdaUpdate()
+                        .eq(Space::getId, spaceId)
+                        .setSql("totalSize = totalSize - " + totalSize)
+                        .setSql("totalCount = totalCount - " + count)
+                        .update();
+                ThrowUtils.throwIf(!update, ErrorCode.OPERATION_ERROR, "空间额度更新失败");
+            }
+
+            return true;
+        });
+
+        // 异步清理文件和缓存
+        for (Picture picture : picturesToDelete) {
+            // 异步清理文件
+            this.clearPictureFileLocal(picture);
+
+            // 清理首页图片缓存（公共图库）
+            if (picture.getSpaceId() == null) {
+                Set<String> keys = redisTemplate.keys("HOME_PICTURE_LIST_KEY:" + "*");
+                if (keys != null && !keys.isEmpty()) {
+                    redisTemplate.delete(keys);
+                }
+            }
+
+            // 清除redis中图片交互数据
+            String interactionKey = CacheKeyConstant.PICTURE_INTERACTION_KEY_PREFIX + picture.getId();
+            redisTemplate.delete(interactionKey);
+        }
     }
 
     /**
@@ -1018,33 +1125,51 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         // 1. 获取和校验参数
         List<Long> pictureIdList = pictureEditByBatchRequest.getPictureIdList();
         Long spaceId = pictureEditByBatchRequest.getSpaceId();
-        String category = pictureEditByBatchRequest.getCategory();
+        Long categoryId = pictureEditByBatchRequest.getCategoryId();
         List<String> tags = pictureEditByBatchRequest.getTags();
         ThrowUtils.throwIf(CollUtil.isEmpty(pictureIdList), ErrorCode.PARAMS_ERROR);
-        ThrowUtils.throwIf(spaceId == null, ErrorCode.PARAMS_ERROR);
         ThrowUtils.throwIf(loginUser == null, ErrorCode.NO_AUTH_ERROR);
-        // 2. 校验空间权限
-        Space space = spaceService.getById(spaceId);
-        ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
-        if (!space.getUserId().equals(loginUser.getId())) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "没有空间访问权限");
-        }
-        // 3. 查询指定图片（仅选择需要的字段）
+
+        // 2. 查询指定图片（需要查询 userId 字段用于权限校验）
         List<Picture> pictureList = this.lambdaQuery()
-                .select(Picture::getId, Picture::getSpaceId)
-                .eq(Picture::getSpaceId, spaceId)
+                .select(Picture::getId, Picture::getSpaceId, Picture::getUserId)
+                .eq(spaceId != null, Picture::getSpaceId, spaceId)
+                .isNull(spaceId == null, Picture::getSpaceId)
                 .in(Picture::getId, pictureIdList)
                 .list();
         if (pictureList.isEmpty()) {
             return;
         }
+
+        // 3. 校验权限
+        if (spaceId != null) {
+            // 私有空间：校验空间权限
+            Space space = spaceService.getById(spaceId);
+            ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
+            if (!space.getUserId().equals(loginUser.getId())) {
+                throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "没有空间访问权限");
+            }
+        } else {
+            // 公共图库：管理员可以编辑所有图片，普通用户只能编辑自己上传的图片
+            boolean isAdmin = UserRoleEnum.ADMIN.getValue().equals(loginUser.getUserRole());
+            if (!isAdmin) {
+                // 校验所有图片是否都是当前用户上传的
+                boolean hasNoAuth = pictureList.stream()
+                        .anyMatch(picture -> !picture.getUserId().equals(loginUser.getId()));
+                if (hasNoAuth) {
+                    throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "只能编辑自己上传的图片");
+                }
+            }
+        }
+
         // 4. 更新分类和标签
         pictureList.forEach(picture -> {
-            if (StrUtil.isNotBlank(category)) {
-                picture.setCategory(category);
+            if (categoryId != null) {
+                picture.setCategoryId(categoryId);
             }
             if (CollUtil.isNotEmpty(tags)) {
-                picture.setTags(JSONUtil.toJsonStr(tags));
+                // 将标签列表转换为逗号分隔的字符串，与 editPicture 方法保持一致
+                picture.setTags(String.join(",", tags));
             }
         });
 //        // 批量重命名

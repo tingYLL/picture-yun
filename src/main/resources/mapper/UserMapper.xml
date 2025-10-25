@@ -23,7 +23,6 @@
             <result property="vipNnumber" column="vipNnumber" jdbcType="BIGINT"/>
             <result property="vipExpireTime" column="vipExpireTime" jdbcType="TIMESTAMP"/>
             <result property="vipCode" column="vipCode" jdbcType="VARCHAR"/>
-            <result property="vipSign" column="vipSign" jdbcType="VARCHAR"/>
             <result property="shareCode" column="shareCode" jdbcType="VARCHAR"/>
             <result property="inviteUserId" column="inviteUserId" jdbcType="BIGINT"/>
     </resultMap>
@@ -34,7 +33,7 @@
         userRole,editTime,createTime,
         updateTime,isDelete,userEmail,
         userPhone,birthday,vipNnumber,
-        vipExpireTime,vipCode,vipSign,
+        vipExpireTime,vipCode,
         shareCode,inviteUserId,isDisabled
     </sql>
 </mapper>

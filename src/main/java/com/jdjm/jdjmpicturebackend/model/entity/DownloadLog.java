@@ -21,6 +21,9 @@ public class DownloadLog implements Serializable {
     @TableField("file_id")
     private Long fileId;
 
+    @TableField("space_id")
+    private Long spaceId;
+
     @TableField("downloaded_at")
     private LocalDateTime downloadedAt;
     @TableField(exist = false)

@@ -48,25 +48,23 @@ public class UserController {
      * 用户登录
      */
     @PostMapping("/login")
-    public BaseResponse<LoginUserVO> userLogin(@RequestBody UserLoginRequest userLoginRequest, HttpServletRequest request) {
+    public BaseResponse<UserVO> userLogin(@RequestBody UserLoginRequest userLoginRequest, HttpServletRequest request) {
         ThrowUtils.throwIf(userLoginRequest == null, ErrorCode.PARAMS_ERROR);
         String userAccount = userLoginRequest.getUserAccount();
         String userPassword = userLoginRequest.getUserPassword();
-        LoginUserVO loginUserVO = userService.userLogin(userAccount, userPassword, request);
-//        userService.convertUserAvatar(loginUserVO);
-        return ResultUtils.success(loginUserVO);
+        UserVO userVO = userService.userLogin(userAccount, userPassword, request);
+        return ResultUtils.success(userVO);
     }
 
     /**
      * 获取当前登录用户
      */
     @GetMapping("/get/login")
-    public BaseResponse<LoginUserVO> getLoginUser(HttpServletRequest request) {
-        User loginUser = userService.getLoginUser(request);
-        LoginUserVO loginUserVO = userService.getLoginUserVO(loginUser);
-//        userService.convertUserAvatar(loginUserVO);
+    public BaseResponse<UserVO> getLoginUser(HttpServletRequest request) {
+        User user = userService.getLoginUser(request);
+        UserVO userVO = userService.getUserVO(user);
         //返回脱敏后的用户信息
-        return ResultUtils.success(loginUserVO);
+        return ResultUtils.success(userVO);
     }
 
     /**
