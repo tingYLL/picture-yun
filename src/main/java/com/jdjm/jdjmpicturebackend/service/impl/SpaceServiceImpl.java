@@ -13,9 +13,7 @@ import com.jdjm.jdjmpicturebackend.manager.sharding.DynamicShardingManager;
 import com.jdjm.jdjmpicturebackend.mapper.SpaceMapper;
 import com.jdjm.jdjmpicturebackend.model.dto.space.SpaceAddRequest;
 import com.jdjm.jdjmpicturebackend.model.dto.space.SpaceQueryRequest;
-import com.jdjm.jdjmpicturebackend.model.entity.Space;
-import com.jdjm.jdjmpicturebackend.model.entity.SpaceUser;
-import com.jdjm.jdjmpicturebackend.model.entity.User;
+import com.jdjm.jdjmpicturebackend.model.entity.*;
 import com.jdjm.jdjmpicturebackend.model.enums.SpaceLevelEnum;
 import com.jdjm.jdjmpicturebackend.model.enums.SpaceRoleEnum;
 import com.jdjm.jdjmpicturebackend.model.enums.SpaceTypeEnum;
@@ -265,60 +263,56 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space>
     public boolean deleteSpace(Long spaceId, User loginUser) {
         log.info("用户 {} 开始删除空间 {}", loginUser.getId(), spaceId);
 
-        // 1. 校验空间是否存在
-        Space space = this.getById(spaceId);
-        ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
+        try {
+            // 1. 校验空间是否存在
+            Space space = this.getById(spaceId);
+            ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
 
-        // 2. 校验权限
-        this.checkSpaceAuth(loginUser, space);
+            // 2. 校验权限
+            this.checkSpaceAuth(loginUser, space);
 
-        // 3. 检查关联数据并级联删除
-        return transactionTemplate.execute(status -> {
-            try {
-                // 3.1 删除空间用户关联
-                boolean spaceUserDeleted = spaceUserService.lambdaUpdate()
-                        .eq(SpaceUser::getSpaceId, spaceId)
+            // 3.1 删除空间用户关联
+            boolean spaceUserDeleted = spaceUserService.lambdaUpdate()
+                    .eq(SpaceUser::getSpaceId, spaceId)
+                    .remove();
+            log.info("删除空间用户关联记录: {}", spaceUserDeleted);
+
+            // 3.2 查询并删除空间下的所有图片
+            List<Long> pictureIds = pictureService.lambdaQuery()
+                    .eq(Picture::getSpaceId, spaceId)
+                    .list()
+                    .stream()
+                    .map(Picture::getId)
+                    .collect(Collectors.toList());
+
+            if (!pictureIds.isEmpty()) {
+                // 3.2.1 删除图片交互记录
+                boolean interactionDeleted = pictureInteractionService.lambdaUpdate()
+                        .in(PictureInteraction::getPictureId, pictureIds)
                         .remove();
-                log.info("删除空间用户关联记录: {}", spaceUserDeleted);
+                log.info("删除图片交互记录: {}", interactionDeleted);
 
-                // 3.2 查询并删除空间下的所有图片
-                List<Long> pictureIds = pictureService.lambdaQuery()
-                        .eq(com.jdjm.jdjmpicturebackend.model.entity.Picture::getSpaceId, spaceId)
-                        .list()
-                        .stream()
-                        .map(com.jdjm.jdjmpicturebackend.model.entity.Picture::getId)
-                        .collect(Collectors.toList());
-
-                if (!pictureIds.isEmpty()) {
-                    // 3.2.1 删除图片交互记录
-                    boolean interactionDeleted = pictureInteractionService.lambdaUpdate()
-                            .in(com.jdjm.jdjmpicturebackend.model.entity.PictureInteraction::getPictureId, pictureIds)
-                            .remove();
-                    log.info("删除图片交互记录: {}", interactionDeleted);
-
-                    // 3.2.2 删除图片（逻辑删除，MyBatis Plus会自动处理@TableLogic注解）
-                    boolean pictureDeleted = pictureService.lambdaUpdate()
-                            .eq(com.jdjm.jdjmpicturebackend.model.entity.Picture::getSpaceId, spaceId)
-                            .remove();
-                    log.info("删除图片记录: {}", pictureDeleted);
-                }
-
-                // 3.3 删除空间
-                boolean spaceDeleted = this.removeById(spaceId);
-                log.info("删除空间记录: {}", spaceDeleted);
-
-                if (spaceDeleted) {
-                    log.info("空间 {} 删除成功，关联的图片数据 {} 条，用户关联 {} 条",
-                            spaceId, pictureIds.size(), spaceUserDeleted ? 1 : 0);
-                }
-
-                return spaceDeleted;
-            } catch (Exception e) {
-                log.error("删除空间 {} 失败", spaceId, e);
-                status.setRollbackOnly();
-                throw new BusinessException(ErrorCode.OPERATION_ERROR, "删除空间失败: " + e.getMessage());
+                // 3.2.2 删除图片（逻辑删除，MyBatis Plus会自动处理@TableLogic注解）
+                boolean pictureDeleted = pictureService.lambdaUpdate()
+                        .eq(Picture::getSpaceId, spaceId)
+                        .remove();
+                log.info("删除图片记录: {}", pictureDeleted);
             }
-        });
+
+            // 3.3 删除空间
+            boolean spaceDeleted = this.removeById(spaceId);
+            log.info("删除空间记录: {}", spaceDeleted);
+
+            if (spaceDeleted) {
+                log.info("空间 {} 删除成功，关联的图片数据 {} 条，用户关联 {} 条",
+                        spaceId, pictureIds.size(), spaceUserDeleted ? 1 : 0);
+            }
+
+            return spaceDeleted;
+        } catch (Exception e) {
+            log.error("删除空间 {} 失败", spaceId, e);
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "删除空间失败: " + e.getMessage());
+        }
     }
 }
 

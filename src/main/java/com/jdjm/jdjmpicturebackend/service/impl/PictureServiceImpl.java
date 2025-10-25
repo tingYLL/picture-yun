@@ -833,15 +833,11 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
             boolean result = this.removeById(pictureId);
             ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
             // 删除图片交互记录
-            long interactionCount = pictureInteractionService.lambdaQuery()
+            boolean interactionDeleteResult = pictureInteractionService.lambdaUpdate()
                     .eq(PictureInteraction::getPictureId, pictureId)
-                    .count();
-            if (interactionCount > 0) {
-                boolean interactionDeleteResult = pictureInteractionService.lambdaUpdate()
-                        .eq(PictureInteraction::getPictureId, pictureId)
-                        .remove();
-                ThrowUtils.throwIf(!interactionDeleteResult, ErrorCode.OPERATION_ERROR, "删除图片交互记录失败");
-            }
+                    .remove();
+            //返回false 并不代表删除失败 可能是picture_interaction表中没有对应记录
+//            ThrowUtils.throwIf(!interactionDeleteResult, ErrorCode.OPERATION_ERROR, "删除图片交互记录失败");
             if(spaceId != null){
                 // 更新空间的使用额度，释放额度
                 boolean update = spaceService.lambdaUpdate()
@@ -908,16 +904,11 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
             ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "批量删除图片失败");
 
             // 批量删除图片交互记录
-            long interactionCount = pictureInteractionService.lambdaQuery()
+            boolean interactionDeleteResult = pictureInteractionService.lambdaUpdate()
                     .in(PictureInteraction::getPictureId, pictureIds)
-                    .count();
-            if (interactionCount > 0) {
-                boolean interactionDeleteResult = pictureInteractionService.lambdaUpdate()
-                        .in(PictureInteraction::getPictureId, pictureIds)
-                        .remove();
-                ThrowUtils.throwIf(!interactionDeleteResult, ErrorCode.OPERATION_ERROR, "批量删除图片交互记录失败");
-            }
-
+                    .remove();
+            //跟单条删除一样，如果一条记录都没有删除 不应该报错 说明用户没有对这张图片进行过点赞or收藏操作， 是正常的
+//            ThrowUtils.throwIf(!interactionDeleteResult, ErrorCode.OPERATION_ERROR, "批量删除图片交互记录失败");
             // 按空间分组，更新空间使用额度
             Map<Long, List<Picture>> spaceGroupMap = picturesToDelete.stream()
                     .filter(p -> p.getSpaceId() != null)

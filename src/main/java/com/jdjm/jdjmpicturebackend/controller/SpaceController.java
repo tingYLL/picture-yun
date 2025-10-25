@@ -70,7 +70,6 @@ public class SpaceController {
         User loginUser = userService.getLoginUser(request);
         Long spaceId = deleteRequest.getId();
 
-        // 调用Service层的删除方法，包含完整的级联删除逻辑
         boolean result = spaceService.deleteSpace(spaceId, loginUser);
 
         return ResultUtils.success(result);
