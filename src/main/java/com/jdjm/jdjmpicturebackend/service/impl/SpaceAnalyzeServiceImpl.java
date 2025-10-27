@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.jdjm.jdjmpicturebackend.exception.BusinessException;
 import com.jdjm.jdjmpicturebackend.exception.ErrorCode;
 import com.jdjm.jdjmpicturebackend.exception.ThrowUtils;
+import com.jdjm.jdjmpicturebackend.mapper.PictureMapper;
 import com.jdjm.jdjmpicturebackend.mapper.SpaceMapper;
 import com.jdjm.jdjmpicturebackend.model.dto.space.analyze.*;
 import com.jdjm.jdjmpicturebackend.model.entity.Picture;
@@ -18,6 +19,7 @@ import com.jdjm.jdjmpicturebackend.service.PictureService;
 import com.jdjm.jdjmpicturebackend.service.SpaceAnalyzeService;
 import com.jdjm.jdjmpicturebackend.service.SpaceService;
 import com.jdjm.jdjmpicturebackend.service.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -35,6 +37,8 @@ public class SpaceAnalyzeServiceImpl extends ServiceImpl<SpaceMapper, Space> imp
     private SpaceService spaceService;
     @Resource
     private PictureService pictureService;
+    @Autowired
+    private PictureMapper pictureMapper;
 
 
     @Override
@@ -92,22 +96,30 @@ public class SpaceAnalyzeServiceImpl extends ServiceImpl<SpaceMapper, Space> imp
         // 检查权限
         checkSpaceAnalyzeAuth(spaceCategoryAnalyzeRequest, loginUser);
 
-        // 构造查询条件
-        QueryWrapper<Picture> queryWrapper = new QueryWrapper<>();
-        fillAnalyzeQueryWrapper(spaceCategoryAnalyzeRequest, queryWrapper);
+        // 准备查询参数
+        Long spaceId = null;
+        Boolean queryPublic = null;
 
-        // 使用 MyBatis Plus 分组查询
-        queryWrapper.select("category", "count(*) as count", "sum(picSize) as totalSize")
-                .groupBy("category");
+        // 根据查询范围设置参数
+        if (spaceCategoryAnalyzeRequest.isQueryAll()) {
+            // 全空间分析，不设置限制条件
+        } else if (spaceCategoryAnalyzeRequest.isQueryPublic()) {
+            // 公共图库
+            queryPublic = true;
+        } else {
+            // 特定空间
+            spaceId = spaceCategoryAnalyzeRequest.getSpaceId();
+        }
+        // 使用自定义SQL查询
+        List<Map<String, Object>> results = pictureMapper.getCategoryStatistics(spaceId, queryPublic);
 
-        // 查询并转换结果
-        return pictureService.getBaseMapper().selectMaps(queryWrapper)
-                .stream()
+        // 转换结果
+        return results.stream()
                 .map(result -> {
-                    String category = (String) result.get("category");
+                    String categoryName = (String) result.get("categoryName");
                     Long count = ((Number) result.get("count")).longValue();
                     Long totalSize = ((Number) result.get("totalSize")).longValue();
-                    return new SpaceCategoryAnalyzeResponse(category, count, totalSize);
+                    return new SpaceCategoryAnalyzeResponse(categoryName, count, totalSize);
                 })
                 .collect(Collectors.toList());
     }
@@ -131,8 +143,13 @@ public class SpaceAnalyzeServiceImpl extends ServiceImpl<SpaceMapper, Space> imp
 
         // 解析标签并统计
         Map<String, Long> tagCountMap = tagsJsonList.stream()
-                // "["Java", "Python"]", "["Java", "PHP"]" =>  ["Java", "Python"], ["Java", "PHP"] => "Java", "Python", "Java", "PHP"
-                .flatMap(tagsJson -> JSONUtil.toList(tagsJson, String.class).stream())
+                .flatMap(tagsStr -> {
+                    // 按逗号分割标签字符串，并去除空白字符
+                    String[] tagArray = tagsStr.split(",");
+                    return java.util.Arrays.stream(tagArray)
+                            .map(String::trim)
+                            .filter(tag -> !tag.isEmpty());
+                })
                 .collect(Collectors.groupingBy(tag -> tag, Collectors.counting()));
 
         // 转换为响应对象，按照使用次数进行排序

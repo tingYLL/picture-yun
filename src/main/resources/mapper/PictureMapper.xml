@@ -53,4 +53,22 @@
         collectQuantity,downloadQuantity,shareQuantity,
         isShare,expandStatus,recommendScore
     </sql>
+
+    <select id="getCategoryStatistics" resultType="java.util.Map">
+        SELECT
+            COALESCE(c.name, '未分类') as categoryName,
+            COUNT(*) as count,
+            SUM(p.picSize) as totalSize
+        FROM picture p
+        LEFT JOIN category c ON p.categoryId = c.id
+        WHERE p.isDelete = 0
+        <if test="spaceId != null">
+            AND p.spaceId = #{spaceId}
+        </if>
+        <if test="queryPublic != null and queryPublic == true">
+            AND p.spaceId IS NULL
+        </if>
+        GROUP BY c.name
+        ORDER BY count DESC
+    </select>
 </mapper>
