@@ -11,6 +11,7 @@ import com.jdjm.jdjmpicturebackend.manager.auth.annotation.SaSpaceCheckPermissio
 import com.jdjm.jdjmpicturebackend.manager.auth.model.SpaceUserPermissionConstant;
 import com.jdjm.jdjmpicturebackend.model.dto.spaceuser.SpaceUserAddRequest;
 import com.jdjm.jdjmpicturebackend.model.dto.spaceuser.SpaceUserEditRequest;
+import com.jdjm.jdjmpicturebackend.model.dto.spaceuser.SpaceUserQuitRequest;
 import com.jdjm.jdjmpicturebackend.model.dto.spaceuser.SpaceUserQueryRequest;
 import com.jdjm.jdjmpicturebackend.model.entity.SpaceUser;
 import com.jdjm.jdjmpicturebackend.model.entity.User;
@@ -140,5 +141,39 @@ public class SpaceUserController {
                 spaceUserService.getQueryWrapper(spaceUserQueryRequest)
         );
         return ResultUtils.success(spaceUserService.getSpaceUserVOList(spaceUserList));
+    }
+
+    /**
+     * 用户退出空间
+     */
+    @PostMapping("/quit")
+    public BaseResponse<Boolean> quitSpace(@RequestBody SpaceUserQuitRequest spaceUserQuitRequest,
+                                          HttpServletRequest request) {
+        ThrowUtils.throwIf(spaceUserQuitRequest == null, ErrorCode.PARAMS_ERROR);
+
+        // 获取当前登录用户
+        User loginUser = userService.getLoginUser(request);
+        Long userId = spaceUserQuitRequest.getUserId();
+        Long spaceId = spaceUserQuitRequest.getSpaceId();
+
+        // 参数校验
+        ThrowUtils.throwIf(ObjectUtil.hasEmpty(spaceId, userId), ErrorCode.PARAMS_ERROR);
+
+        // 只能是用户自己退出空间，或者管理员可以帮助用户退出
+        if (!loginUser.getId().equals(userId)) {
+            // 如果不是管理员，需要验证是否有权限操作
+            User targetUser = userService.getById(userId);
+            ThrowUtils.throwIf(targetUser == null, ErrorCode.NOT_FOUND_ERROR, "目标用户不存在");
+
+            // TODO: 如果需要管理员权限，可以在这里添加权限验证
+            // 这里暂时允许用户自己退出空间
+
+            // 如果不是目标用户本人，只允许管理员操作此类接口
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "只能退出自己的空间");
+        }
+
+        // 执行退出空间操作
+        boolean result = spaceUserService.quitSpace(spaceUserQuitRequest);
+        return ResultUtils.success(result);
     }
 }

@@ -4,6 +4,7 @@ package com.jdjm.jdjmpicturebackend.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.jdjm.jdjmpicturebackend.model.dto.spaceuser.SpaceUserAddRequest;
+import com.jdjm.jdjmpicturebackend.model.dto.spaceuser.SpaceUserQuitRequest;
 import com.jdjm.jdjmpicturebackend.model.dto.spaceuser.SpaceUserQueryRequest;
 import com.jdjm.jdjmpicturebackend.model.entity.SpaceUser;
 import com.jdjm.jdjmpicturebackend.model.vo.SpaceUserVO;
@@ -57,4 +58,12 @@ public interface SpaceUserService extends IService<SpaceUser> {
      * @return
      */
     QueryWrapper<SpaceUser> getQueryWrapper(SpaceUserQueryRequest spaceUserQueryRequest);
+
+    /**
+     * 用户退出空间
+     *
+     * @param spaceUserQuitRequest
+     * @return
+     */
+    boolean quitSpace(SpaceUserQuitRequest spaceUserQuitRequest);
 }

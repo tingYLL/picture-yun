@@ -10,6 +10,7 @@ import com.jdjm.jdjmpicturebackend.exception.ErrorCode;
 import com.jdjm.jdjmpicturebackend.exception.ThrowUtils;
 import com.jdjm.jdjmpicturebackend.mapper.SpaceUserMapper;
 import com.jdjm.jdjmpicturebackend.model.dto.spaceuser.SpaceUserAddRequest;
+import com.jdjm.jdjmpicturebackend.model.dto.spaceuser.SpaceUserQuitRequest;
 import com.jdjm.jdjmpicturebackend.model.dto.spaceuser.SpaceUserQueryRequest;
 import com.jdjm.jdjmpicturebackend.model.entity.Space;
 import com.jdjm.jdjmpicturebackend.model.entity.SpaceUser;
@@ -156,6 +157,30 @@ public class SpaceUserServiceImpl extends ServiceImpl<SpaceUserMapper, SpaceUser
         queryWrapper.eq(ObjUtil.isNotEmpty(userId), "userId", userId);
         queryWrapper.eq(ObjUtil.isNotEmpty(spaceRole), "spaceRole", spaceRole);
         return queryWrapper;
+    }
+
+    @Override
+    public boolean quitSpace(SpaceUserQuitRequest spaceUserQuitRequest) {
+        // 参数校验
+        ThrowUtils.throwIf(spaceUserQuitRequest == null, ErrorCode.PARAMS_ERROR);
+        Long spaceId = spaceUserQuitRequest.getSpaceId();
+        Long userId = spaceUserQuitRequest.getUserId();
+        ThrowUtils.throwIf(ObjectUtil.hasEmpty(spaceId, userId), ErrorCode.PARAMS_ERROR);
+
+        // 查询空间用户关联记录
+        QueryWrapper<SpaceUser> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("spaceId", spaceId)
+                   .eq("userId", userId);
+        SpaceUser spaceUser = this.getOne(queryWrapper);
+
+        // 验证空间用户关联是否存在
+        ThrowUtils.throwIf(spaceUser == null, ErrorCode.NOT_FOUND_ERROR, "用户不在该空间中");
+
+        // 删除空间用户关联记录
+        boolean result = this.removeById(spaceUser.getId());
+        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "退出空间失败");
+
+        return result;
     }
 }
 
