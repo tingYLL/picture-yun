@@ -75,6 +75,12 @@ public class SpaceUserServiceImpl extends ServiceImpl<SpaceUserMapper, SpaceUser
             ThrowUtils.throwIf(user == null, ErrorCode.NOT_FOUND_ERROR, "用户不存在");
             Space space = spaceService.getById(spaceId);
             ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
+            // 检查是否已存在相同的空间用户关联记录
+            QueryWrapper<SpaceUser> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("spaceId", spaceId)
+                       .eq("userId", userId);
+            long count = this.count(queryWrapper);
+            ThrowUtils.throwIf(count > 0, ErrorCode.PARAMS_ERROR, "用户已在该空间中");
         }
         // 校验空间角色
         String spaceRole = spaceUser.getSpaceRole();
