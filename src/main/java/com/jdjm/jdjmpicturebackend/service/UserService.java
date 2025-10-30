@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.jdjm.jdjmpicturebackend.model.dto.user.UserEditPasswordRequest;
 import com.jdjm.jdjmpicturebackend.model.dto.user.UserEditRequest;
 import com.jdjm.jdjmpicturebackend.model.dto.user.UserQueryRequest;
+import com.jdjm.jdjmpicturebackend.model.dto.user.UserUpdateRequest;
 import com.jdjm.jdjmpicturebackend.model.entity.User;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.jdjm.jdjmpicturebackend.model.vo.LoginUserVO;
@@ -99,6 +100,13 @@ public interface UserService extends IService<User> {
     void convertUserAvatar(Object object);
 
     void disabledUser(Long id, Integer isDisabled);
+
+    /**
+     * 检查用户账号和手机号的唯一性
+     *
+     * @param userUpdateRequest 用户更新请求
+     */
+    void checkUserAccountAndPhoneUnique(UserUpdateRequest userUpdateRequest);
 
 //    String resetPassword(Long id);
 }

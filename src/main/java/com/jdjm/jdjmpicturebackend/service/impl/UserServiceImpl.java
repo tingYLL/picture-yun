@@ -15,6 +15,7 @@ import com.jdjm.jdjmpicturebackend.exception.ErrorCode;
 import com.jdjm.jdjmpicturebackend.manager.auth.StpKit;
 import com.jdjm.jdjmpicturebackend.model.dto.user.UserEditPasswordRequest;
 import com.jdjm.jdjmpicturebackend.model.dto.user.UserQueryRequest;
+import com.jdjm.jdjmpicturebackend.model.dto.user.UserUpdateRequest;
 import com.jdjm.jdjmpicturebackend.model.entity.User;
 import com.jdjm.jdjmpicturebackend.model.enums.UserDisabledEnum;
 import com.jdjm.jdjmpicturebackend.model.enums.UserRoleEnum;
@@ -85,8 +86,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         if (StrUtil.hasBlank(userAccount, userPassword, checkPassword)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数为空");
         }
-        if (userAccount.length() < 4) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户账号过短");
+        if (userAccount.length() <= 4) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户账号长度必须大于4位");
         }
         if (userPassword.length() < 8 || checkPassword.length() < 8) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户密码过短");
@@ -101,14 +102,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         if (count > 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "账号重复");
         }
-        // 3. 密码一定要加密
+        // 3. 密码加密
         String encryptPassword = getEncryptPassword(userPassword);
         // 4. 插入数据到数据库中
         User user = new User();
         user.setUserAccount(userAccount);
         user.setUserPassword(encryptPassword);
-        String random = RandomUtil.randomString(6);
-        user.setUserName("用户_"+random);
+//        String random = RandomUtil.randomString(6);
+//        user.setUserName("用户_"+random);
+        user.setUserName(userAccount);
         user.setUserRole(UserRoleEnum.USER.getValue());
         boolean saveResult = this.save(user);
         if (!saveResult) {
@@ -391,6 +393,35 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
             return;
         }
         throw new BusinessException(ErrorCode.SYSTEM_ERROR, "禁用失败!");
+    }
+
+    @Override
+    public void checkUserAccountAndPhoneUnique(UserUpdateRequest userUpdateRequest) {
+        Long userId = userUpdateRequest.getId();
+        String userAccount = userUpdateRequest.getUserAccount();
+        String userPhone = userUpdateRequest.getUserPhone();
+
+        // 检查用户账号唯一性（如果要更新的账号不为空）
+        if (StrUtil.isNotBlank(userAccount)) {
+            QueryWrapper<User> accountQuery = new QueryWrapper<>();
+            accountQuery.eq("userAccount", userAccount);
+            accountQuery.ne("id", userId); // 排除当前用户
+            long accountCount = this.count(accountQuery);
+            if (accountCount > 0) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户账号已存在");
+            }
+        }
+
+        // 检查手机号唯一性（如果要更新的手机号不为空）
+        if (StrUtil.isNotBlank(userPhone)) {
+            QueryWrapper<User> phoneQuery = new QueryWrapper<>();
+            phoneQuery.eq("userPhone", userPhone);
+            phoneQuery.ne("id", userId); // 排除当前用户
+            long phoneCount = this.count(phoneQuery);
+            if (phoneCount > 0) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "手机号已存在");
+            }
+        }
     }
 
 //    @Override

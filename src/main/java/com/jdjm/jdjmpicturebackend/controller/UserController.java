@@ -195,8 +195,12 @@ public class UserController {
         }
         String userAccount = userUpdateRequest.getUserAccount();
         if (userAccount.length() <= 4) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户账号必须大于4位");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户账号长度必须大于4位");
         }
+
+        // 检查用户账号和手机号的唯一性
+        userService.checkUserAccountAndPhoneUnique(userUpdateRequest);
+
         User user = new User();
         BeanUtils.copyProperties(userUpdateRequest, user);
         boolean result = userService.updateById(user);
