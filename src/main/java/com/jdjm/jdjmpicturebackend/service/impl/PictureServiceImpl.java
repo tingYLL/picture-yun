@@ -27,6 +27,7 @@ import com.jdjm.jdjmpicturebackend.exception.ThrowUtils;
 import com.jdjm.jdjmpicturebackend.manager.CosManager;
 import com.jdjm.jdjmpicturebackend.manager.FileManager;
 import com.jdjm.jdjmpicturebackend.manager.auth.SpaceUserAuthManager;
+import com.jdjm.jdjmpicturebackend.manager.auth.StpKit;
 import com.jdjm.jdjmpicturebackend.manager.auth.model.SpaceUserPermissionConstant;
 import com.jdjm.jdjmpicturebackend.manager.redis.RedisCache;
 import com.jdjm.jdjmpicturebackend.manager.upload.FilePictureUpload;
@@ -702,8 +703,13 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         Map<Long, Boolean> collectMap = new HashMap<>();
 //        避免未登录导致直接抛出异常
 //        User loginUser = userService.getLoginUser(request);
-        // 判断是否已经登录
-        Object userObj = request.getSession().getAttribute(UserConstant.USER_LOGIN_STATE);
+        // 判断是否已经登录（使用Sa-Token统一认证）
+        Object userObj = null;
+        try {
+            userObj = StpKit.SPACE.getSession().get(UserConstant.USER_LOGIN_STATE);
+        } catch (Exception e) {
+            // Sa-Token未登录，用户为空
+        }
         User loginUser = (User) userObj;
         if (loginUser != null && loginUser.getId() != null) {
             List<Long> pictureIds = pictureVOList.stream().map(PictureVO::getId).collect(Collectors.toList());
@@ -1218,8 +1224,13 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         PictureVO pictureVO = this.getPictureVO(picture,request);
         List<String> permissionList;
         Long spaceId = picture.getSpaceId();
-        // 判断是否已经登录
-        Object userObj = request.getSession().getAttribute(UserConstant.USER_LOGIN_STATE);
+        // 判断是否已经登录（使用Sa-Token统一认证）
+        Object userObj = null;
+        try {
+            userObj = StpKit.SPACE.getSession().get(UserConstant.USER_LOGIN_STATE);
+        } catch (Exception e) {
+            // Sa-Token未登录，用户为空
+        }
         User currentUser = (User) userObj;
 
         if (currentUser == null || currentUser.getId() == null) {
@@ -1371,7 +1382,13 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
                 .collect(Collectors.groupingBy(User::getId));
         Map<Long, Boolean> likeMap = new HashMap<>();
         Map<Long, Boolean> collectMap = new HashMap<>();
-        Object userObj = request.getSession().getAttribute(UserConstant.USER_LOGIN_STATE);
+        // 判断是否已经登录（使用Sa-Token统一认证）
+        Object userObj = null;
+        try {
+            userObj = StpKit.SPACE.getSession().get(UserConstant.USER_LOGIN_STATE);
+        } catch (Exception e) {
+            // Sa-Token未登录，用户为空
+        }
         User loginUser = (User) userObj;
         if (loginUser != null && loginUser.getId() != null) {
             List<Long> pictureIds = pictureVOList.stream().map(PictureVO::getId).collect(Collectors.toList());

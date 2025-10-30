@@ -153,15 +153,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         if (UserDisabledEnum.isDisabled(user.getIsDisabled())) {
             throw new BusinessException(ErrorCode.FORBIDDEN_ERROR, "用户已被禁用");
         }
-        // 4. 保存用户的登录态到redis中
-        request.getSession().setAttribute(UserConstant.USER_LOGIN_STATE, user);
-//        String sessionId = request.getSession().getId();
-//        String userSessionsKey = "user:sessions:" + user.getId();
-        // 使用RedisTemplate操作Redis
-//        redisTemplate.opsForSet().add(userSessionsKey, sessionId);
-        // 存储的这个集合设置一个过期时间，比如和Session过期时间一致
-//        redisTemplate.expire(userSessionsKey, 180, TimeUnit.SECONDS);
-        //记录用户登录态到Sa-token.便于空间鉴权时使用
+        // 4. 记录用户登录态到Sa-Token，统一使用Sa-Token管理会话
         StpKit.SPACE.login(user.getId());
         StpKit.SPACE.getSession().set(UserConstant.USER_LOGIN_STATE, user);
         return this.getUserVO(user);
@@ -224,8 +216,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
 
     @Override
     public User getLoginUser(HttpServletRequest request) {
-        // 判断是否已经登录
-        Object userObj = request.getSession().getAttribute(UserConstant.USER_LOGIN_STATE);
+        // 优先从Sa-Token Session中获取用户信息
+        Object userObj = null;
+        try {
+            userObj = StpKit.SPACE.getSession().get(USER_LOGIN_STATE);
+        } catch (Exception e) {
+            // Sa-Token未登录，忽略异常
+        }
+
         User currentUser = (User) userObj;
         if (currentUser == null || currentUser.getId() == null) {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
@@ -242,17 +240,30 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
 
     @Override
     public boolean userLogout(HttpServletRequest request) {
-        // 判断是否已经登录
-        Object userObj = request.getSession().getAttribute(UserConstant.USER_LOGIN_STATE);
-        if (userObj == null) {
+        // 优先从Sa-Token中获取登录状态
+        User loginUser = null;
+        try {
+            Object userObj = StpKit.SPACE.getSession().get(USER_LOGIN_STATE);
+            loginUser = (User) userObj;
+        } catch (Exception e) {
+            // Sa-Token未登录，尝试从传统Session获取
+            Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
+            loginUser = (User) userObj;
+        }
+
+        if (loginUser == null) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "未登录");
         }
-        // 移除登录态
-        User loginUser = this.getLoginUser(request);
-        StpKit.SPACE.logout(loginUser.getId());
-        request.getSession().removeAttribute(UserConstant.USER_LOGIN_STATE);
-//        String userSessionsKey = "user:sessions:" + loginUser.getId();;
-//        redisTemplate.delete(userSessionsKey);
+
+        // 移除Sa-Token登录态
+        try {
+            StpKit.SPACE.logout(loginUser.getId());
+        } catch (Exception e) {
+            // 忽略Sa-Token登出异常
+        }
+
+        // 移除传统Session登录态（兼容性处理，但不应该再被执行）
+        request.getSession().removeAttribute(USER_LOGIN_STATE);
         return true;
     }
 
