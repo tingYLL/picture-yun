@@ -19,6 +19,14 @@ public interface DownloadService extends IService<DownloadLog> {
     boolean canDownload(Long userId);
 
     /**
+     * 判断是否满足下载条件（检查特定文件）
+     * @param userId
+     * @param fileId 文件ID
+     * @return
+     */
+    boolean canDownload(Long userId, Long fileId);
+
+    /**
      * 获取用户当天剩余下载次数（只有下载公共图库的图片才会消耗次数
      * @param userId
      * @return

@@ -36,7 +36,7 @@ public class DownloadController {
         ThrowUtils.throwIf(ObjectUtil.isEmpty(fileId), ErrorCode.PARAMS_ERROR);
         User loginUser = userService.getLoginUser(request);
         Long id = loginUser.getId();
-        if (downloadService.canDownload(id)) {
+        if (downloadService.canDownload(id, fileId)) {
             downloadService.logDownload(id, fileId);
             return ResultUtils.success(true);
         } else {

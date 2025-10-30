@@ -42,7 +42,16 @@ public class DownloadServiceImpl extends ServiceImpl<DownloadLogMapper,DownloadL
     private SpaceService spaceService;
 
     public boolean canDownload(Long userId) {
-            return getRemainingDownloads(userId) > 0;
+        return getRemainingDownloads(userId) > 0;
+    }
+
+    public boolean canDownload(Long userId, Long fileId) {
+        // 如果用户曾经下载过这个文件，可以无限次再次下载
+        if (hasDownloadedFile(userId, fileId)) {
+            return true;
+        }
+        // 否则检查剩余下载次数
+        return getRemainingDownloads(userId) > 0;
     }
 
     public int getRemainingDownloads(Long userId) {
