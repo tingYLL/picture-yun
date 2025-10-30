@@ -19,5 +19,9 @@ public class WebConfig implements WebMvcConfigurer {
         // 将 /images/** 这个URL路径映射到本地目录
         registry.addResourceHandler("/images/**")
                 .addResourceLocations("file:" + uploadDir + File.separator);
+
+        // 将 /images/static/** 映射到 classpath:/static/ 目录，用于访问默认头像等静态资源
+        registry.addResourceHandler("/images/static/**")
+                .addResourceLocations("classpath:/static/");
     }
 }

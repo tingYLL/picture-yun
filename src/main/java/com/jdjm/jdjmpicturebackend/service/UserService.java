@@ -108,5 +108,13 @@ public interface UserService extends IService<User> {
      */
     void checkUserAccountAndPhoneUnique(UserUpdateRequest userUpdateRequest);
 
+    /**
+     * 更新用户信息（包含校验、数据清洗等完整逻辑）
+     *
+     * @param userUpdateRequest 用户更新请求
+     * @return 是否更新成功
+     */
+    boolean updateUser(UserUpdateRequest userUpdateRequest);
+
 //    String resetPassword(Long id);
 }

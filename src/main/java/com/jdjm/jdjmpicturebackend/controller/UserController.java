@@ -1,6 +1,7 @@
 package com.jdjm.jdjmpicturebackend.controller;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.lang.Validator;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -182,28 +183,7 @@ public class UserController {
     @PostMapping("/update")
 //    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
     public BaseResponse<Boolean> updateUser(@RequestBody UserUpdateRequest userUpdateRequest) {
-        if (userUpdateRequest == null || userUpdateRequest.getId() == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
-        String userPhone = userUpdateRequest.getUserPhone();
-        if (StrUtil.isNotEmpty(userPhone) && userPhone.length() != 11) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "手机号码格式错误");
-        }
-        String userProfile = userUpdateRequest.getUserProfile();
-        if (StrUtil.isNotEmpty(userProfile) && userProfile.length() > 500) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户简介过长");
-        }
-        String userAccount = userUpdateRequest.getUserAccount();
-        if (userAccount.length() <= 4) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户账号长度必须大于4位");
-        }
-
-        // 检查用户账号和手机号的唯一性
-        userService.checkUserAccountAndPhoneUnique(userUpdateRequest);
-
-        User user = new User();
-        BeanUtils.copyProperties(userUpdateRequest, user);
-        boolean result = userService.updateById(user);
+        boolean result = userService.updateUser(userUpdateRequest);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         return ResultUtils.success(true);
     }

@@ -112,6 +112,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
 //        user.setUserName("用户_"+random);
         user.setUserName(userAccount);
         user.setUserRole(UserRoleEnum.USER.getValue());
+        // 设置默认头像
+        user.setUserAvatar("/images/static/u=2832392520,934031951&fm=253&app=138&f=JPEG.jpg");
         boolean saveResult = this.save(user);
         if (!saveResult) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "注册失败，数据库错误");
@@ -422,6 +424,99 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "手机号已存在");
             }
         }
+    }
+
+    @Override
+    public boolean updateUser(UserUpdateRequest userUpdateRequest) {
+        if (userUpdateRequest == null || userUpdateRequest.getId() == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数错误");
+        }
+
+        // 去除关键字段的前后空格，提高数据质量
+        String userPhone = userUpdateRequest.getUserPhone();
+        if (StrUtil.isNotEmpty(userPhone)) {
+            userPhone = userPhone.trim();
+            userUpdateRequest.setUserPhone(userPhone);
+        }
+
+        String userEmail = userUpdateRequest.getUserEmail();
+        if (StrUtil.isNotEmpty(userEmail)) {
+            userEmail = userEmail.trim();
+            userUpdateRequest.setUserEmail(userEmail);
+        }
+
+        String userAccount = userUpdateRequest.getUserAccount();
+        if (StrUtil.isNotEmpty(userAccount)) {
+            userAccount = userAccount.trim();
+            userUpdateRequest.setUserAccount(userAccount);
+        }
+
+        String userName = userUpdateRequest.getUserName();
+        if (StrUtil.isNotEmpty(userName)) {
+            userName = userName.trim();
+            userUpdateRequest.setUserName(userName);
+        }
+
+        // 校验手机号格式
+        if (StrUtil.isNotEmpty(userPhone) && userPhone.length() != 11) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "手机号码格式错误");
+        }
+
+        // 校验邮箱格式
+        if (StrUtil.isNotEmpty(userEmail) && !cn.hutool.core.lang.Validator.isEmail(userEmail)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "邮箱格式错误");
+        }
+
+        String userProfile = userUpdateRequest.getUserProfile();
+        if (StrUtil.isNotEmpty(userProfile) && userProfile.length() > 500) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户简介过长");
+        }
+
+        if (StrUtil.isBlank(userAccount) || userAccount.length() <= 4) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户账号长度必须大于4位");
+        }
+
+        // 检查用户账号和手机号的唯一性
+        checkUserAccountAndPhoneUnique(userUpdateRequest);
+
+        User user = new User();
+        BeanUtil.copyProperties(userUpdateRequest, user);
+
+        // 将空字符串转换为 null，避免违反数据库唯一索引约束
+        // 数据库的唯一索引允许多个 NULL 值，但不允许多个空字符串
+        // 注意：updateById 不会更新 null 值，需要使用 LambdaUpdate 明确设置
+        boolean hasEmptyStringField = StrUtil.isEmpty(userUpdateRequest.getUserPhone()) ||
+                StrUtil.isEmpty(userUpdateRequest.getUserAccount()) ||
+                StrUtil.isEmpty(userUpdateRequest.getUserName()) ||
+                StrUtil.isEmpty(userUpdateRequest.getUserProfile()) ||
+                StrUtil.isEmpty(userUpdateRequest.getUserEmail()) ||
+                ObjUtil.isEmpty(userUpdateRequest.getBirthday());
+
+        boolean result;
+        if (hasEmptyStringField) {
+            // 使用 LambdaUpdate 明确处理空字符串字段
+            result = this.lambdaUpdate()
+                    .eq(User::getId, user.getId())
+                    .set(StrUtil.isEmpty(userUpdateRequest.getUserPhone()), User::getUserPhone, null)
+                    .set(StrUtil.isNotEmpty(userUpdateRequest.getUserPhone()), User::getUserPhone, user.getUserPhone())
+                    .set(StrUtil.isEmpty(userUpdateRequest.getUserAccount()), User::getUserAccount, null)
+                    .set(StrUtil.isNotEmpty(userUpdateRequest.getUserAccount()), User::getUserAccount, user.getUserAccount())
+                    .set(StrUtil.isEmpty(user.getUserName()), User::getUserName, null)
+                    .set(StrUtil.isNotEmpty(user.getUserName()), User::getUserName, user.getUserName())
+                    .set(StrUtil.isNotEmpty(user.getUserAvatar()), User::getUserAvatar, user.getUserAvatar())
+                    .set(StrUtil.isEmpty(user.getUserProfile()), User::getUserProfile, null)
+                    .set(StrUtil.isNotEmpty(user.getUserProfile()), User::getUserProfile, user.getUserProfile())
+                    .set(StrUtil.isNotEmpty(user.getUserRole()), User::getUserRole, user.getUserRole())
+                    .set(StrUtil.isEmpty(user.getUserEmail()), User::getUserEmail, null)
+                    .set(StrUtil.isNotEmpty(user.getUserEmail()), User::getUserEmail, user.getUserEmail())
+                    .set(ObjUtil.isEmpty(user.getBirthday()), User::getBirthday, null)
+                    .set(user.getBirthday() != null, User::getBirthday, user.getBirthday())
+                    .update();
+        } else {
+            result = this.updateById(user);
+        }
+
+        return result;
     }
 
 //    @Override
