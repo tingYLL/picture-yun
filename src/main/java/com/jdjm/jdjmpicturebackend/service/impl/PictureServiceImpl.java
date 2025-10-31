@@ -1552,12 +1552,16 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         ThrowUtils.throwIf(loginUser == null, ErrorCode.NO_AUTH_ERROR);
         long current = pictureQueryRequest.getCurrent();
         long size = pictureQueryRequest.getPageSize();
+        Date startEditTime = pictureQueryRequest.getStartEditTime();
+        Date endEditTime = pictureQueryRequest.getEndEditTime();
 
         // 2. 查询当前用户收藏的图片交互记录,按收藏时间倒序
         Page<PictureInteraction> interactionPage = pictureInteractionService.lambdaQuery()
                 .eq(PictureInteraction::getUserId, loginUser.getId())
                 .eq(PictureInteraction::getInteractionType, PictureInteractionTypeEnum.COLLECT.getKey())
                 .eq(PictureInteraction::getInteractionStatus, PictureInteractionStatusEnum.EXISTED.getKey())
+                .ge(startEditTime != null, PictureInteraction::getCreateTime, startEditTime)
+                .le(endEditTime != null, PictureInteraction::getCreateTime, endEditTime)
                 .orderByDesc(PictureInteraction::getCreateTime)
                 .page(new Page<>(current, size));
 

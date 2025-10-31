@@ -1,5 +1,6 @@
 package com.jdjm.jdjmpicturebackend.model.dto.download;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.jdjm.jdjmpicturebackend.common.PageRequest;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -32,11 +33,13 @@ public class DownloadRequest extends PageRequest implements Serializable {
     /**
      * 查询开始时间（用于下载历史记录查询）
      */
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ssXXX", timezone = "GMT+8")
     private LocalDateTime startTime;
 
     /**
      * 查询结束时间（用于下载历史记录查询）
      */
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ssXXX", timezone = "GMT+8")
     private LocalDateTime endTime;
 
     private static final long serialVersionUID = 1L;
