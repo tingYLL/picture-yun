@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jdjm.jdjmpicturebackend.mapper.CommentMapper">
+
+    <resultMap id="BaseResultMap" type="com.jdjm.jdjmpicturebackend.model.entity.Comment">
+        <id property="id" column="id" jdbcType="BIGINT"/>
+        <result property="pictureId" column="pictureId" jdbcType="BIGINT"/>
+        <result property="userId" column="userId" jdbcType="BIGINT"/>
+        <result property="parentId" column="parentId" jdbcType="BIGINT"/>
+        <result property="rootId" column="rootId" jdbcType="BIGINT"/>
+        <result property="content" column="content" jdbcType="LONGVARCHAR"/>
+        <result property="status" column="status" jdbcType="INTEGER"/>
+        <result property="likeCount" column="likeCount" jdbcType="INTEGER"/>
+        <result property="replyCount" column="replyCount" jdbcType="INTEGER"/>
+        <result property="spaceId" column="spaceId" jdbcType="BIGINT"/>
+        <result property="createTime" column="createTime" jdbcType="TIMESTAMP"/>
+        <result property="updateTime" column="updateTime" jdbcType="TIMESTAMP"/>
+        <result property="editTime" column="editTime" jdbcType="TIMESTAMP"/>
+        <result property="isDelete" column="isDelete" jdbcType="TINYINT"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,pictureId,userId,parentId,rootId,content,status,likeCount,replyCount,
+        spaceId,createTime,updateTime,editTime,isDelete
+    </sql>
+
+    <select id="getCommentsByRootId" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM comment
+        WHERE rootId = #{rootId}
+        AND isDelete = 0
+        <if test="spaceId != null">
+            AND spaceId = #{spaceId}
+        </if>
+        ORDER BY createTime ASC
+    </select>
+
+    <select id="getAllCommentsByPictureId" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM comment
+        WHERE pictureId = #{pictureId}
+        AND isDelete = 0
+        <if test="spaceId != null">
+            AND spaceId = #{spaceId}
+        </if>
+        ORDER BY createTime ASC
+    </select>
+
+    <select id="getRootComments" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM comment
+        WHERE pictureId = #{pictureId}
+        AND parentId IS NULL
+        AND isDelete = 0
+        <if test="spaceId != null">
+            AND spaceId = #{spaceId}
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        ORDER BY createTime DESC
+    </select>
+
+    <update id="incrementReplyCount">
+        UPDATE comment
+        SET replyCount = replyCount + 1,
+            updateTime = NOW()
+        WHERE id = #{commentId}
+        AND isDelete = 0
+    </update>
+
+    <update id="decrementReplyCount">
+        UPDATE comment
+        SET replyCount = CASE
+            WHEN replyCount > 0 THEN replyCount - 1
+            ELSE 0
+        END,
+            updateTime = NOW()
+        WHERE id = #{commentId}
+        AND isDelete = 0
+    </update>
+
+</mapper>
