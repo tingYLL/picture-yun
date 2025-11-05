@@ -65,6 +65,18 @@ public class CommentSseController {
 
         log.info("用户 {} 建立SSE连接，连接ID: {}", userId, connectionId);
 
+        // 如果用户已有连接，先关闭旧连接
+        SseEmitter oldEmitter = sseEmitters.get(userId);
+        if (oldEmitter != null) {
+            log.info("用户 {} 存在旧连接，先关闭旧连接", userId);
+            try {
+                oldEmitter.complete();
+            } catch (Exception e) {
+                log.error("关闭旧连接失败", e);
+            }
+            sseEmitters.remove(userId);
+        }
+
         // 创建SSE连接，设置超时时间（30分钟） 超过30分钟，执行下面的onTimeout回调,从 sseEmitters Map 中移除该用户的连接
         SseEmitter emitter = new SseEmitter(30 * 60 * 1000L);
 
@@ -84,18 +96,30 @@ public class CommentSseController {
                     .name("unreadCount")
                     .data(String.valueOf(unreadCount)));
         } catch (IOException e) {
-            log.error("SSE连接发送消息失败", e);
+            log.error("SSE连接发送初始消息失败", e);
+            // 初始化失败，移除连接并关闭 emitter
+            sseEmitters.remove(userId);
+            emitter.completeWithError(e);
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "SSE连接初始化失败");
         }
 
         // 设置连接完成和超时时的处理
         emitter.onCompletion(() -> {
-            log.info("用户 {} SSE连接完成", userId);
+            log.info("用户 {} SSE连接完成，连接ID: {}", userId, connectionId);
             sseEmitters.remove(userId);
         });
 
         emitter.onTimeout(() -> {
-            log.info("用户 {} SSE连接超时", userId);
+            log.info("用户 {} SSE连接超时，连接ID: {}", userId, connectionId);
             sseEmitters.remove(userId);
+            emitter.complete();
+        });
+
+        // 添加错误处理回调 - 关键修复点
+        emitter.onError((throwable) -> {
+            log.error("用户 {} SSE连接发生错误，连接ID: {}，错误信息: {}", userId, connectionId, throwable.getMessage());
+            sseEmitters.remove(userId);
+            emitter.complete();
         });
 
         return emitter;
@@ -149,8 +173,13 @@ public class CommentSseController {
                 log.info("向用户 {} 推送通知成功: {}", userId, eventName);
             } catch (IOException e) {
                 log.error("向用户 {} 推送通知失败: {}", userId, eventName, e);
-                // 推送失败时移除连接
+                // 推送失败时先移除连接，再关闭 emitter
                 sseEmitters.remove(userId);
+                try {
+                    emitter.completeWithError(e);
+                } catch (Exception ex) {
+                    log.error("关闭SSE连接失败", ex);
+                }
             }
         } else {
             log.debug("用户 {} 未建立SSE连接，无法推送通知: {}", userId, eventName);
@@ -173,8 +202,13 @@ public class CommentSseController {
                         .data(data));
             } catch (IOException e) {
                 log.error("向用户 {} 推送广播通知失败: {}", userId, eventName, e);
-                // 推送失败时移除连接
+                // 推送失败时先移除连接，再关闭 emitter
                 sseEmitters.remove(userId);
+                try {
+                    emitter.completeWithError(e);
+                } catch (Exception ex) {
+                    log.error("关闭SSE连接失败", ex);
+                }
             }
         });
     }
