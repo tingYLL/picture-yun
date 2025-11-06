@@ -106,19 +106,41 @@ public class CommentSseController {
         // 设置连接完成和超时时的处理
         emitter.onCompletion(() -> {
             log.info("用户 {} SSE连接完成，连接ID: {}", userId, connectionId);
-            sseEmitters.remove(userId);
+            // 只有当前Map中的emitter是当前这个emitter时，才移除
+            // 避免移除了后续建立的新连接
+            SseEmitter currentEmitter = sseEmitters.get(userId);
+            if (currentEmitter == emitter) {
+                sseEmitters.remove(userId);
+                log.info("用户 {} 的连接 {} 已从Map中移除", userId, connectionId);
+            } else {
+                log.info("用户 {} 的连接 {} 已被新连接替换，跳过移除", userId, connectionId);
+            }
         });
 
         emitter.onTimeout(() -> {
             log.info("用户 {} SSE连接超时，连接ID: {}", userId, connectionId);
-            sseEmitters.remove(userId);
+            // 只有当前Map中的emitter是当前这个emitter时，才移除
+            SseEmitter currentEmitter = sseEmitters.get(userId);
+            if (currentEmitter == emitter) {
+                sseEmitters.remove(userId);
+                log.info("用户 {} 的连接 {} 超时已从Map中移除", userId, connectionId);
+            } else {
+                log.info("用户 {} 的连接 {} 已被新连接替换，跳过移除", userId, connectionId);
+            }
             emitter.complete();
         });
 
         // 添加错误处理回调 - 关键修复点
         emitter.onError((throwable) -> {
             log.error("用户 {} SSE连接发生错误，连接ID: {}，错误信息: {}", userId, connectionId, throwable.getMessage());
-            sseEmitters.remove(userId);
+            // 只有当前Map中的emitter是当前这个emitter时，才移除
+            SseEmitter currentEmitter = sseEmitters.get(userId);
+            if (currentEmitter == emitter) {
+                sseEmitters.remove(userId);
+                log.error("用户 {} 的连接 {} 错误已从Map中移除", userId, connectionId);
+            } else {
+                log.info("用户 {} 的连接 {} 已被新连接替换，跳过移除", userId, connectionId);
+            }
             emitter.complete();
         });
 
