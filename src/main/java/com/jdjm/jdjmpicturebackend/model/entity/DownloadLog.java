@@ -26,6 +26,14 @@ public class DownloadLog implements Serializable {
 
     @TableField("downloaded_at")
     private LocalDateTime downloadedAt;
+
+    /**
+     * 是否消耗下载配额：1-消耗，0-不消耗
+     * 不消耗的情况包括：重复下载、下载自己发布的图片
+     */
+    @TableField("consume_quota")
+    private Integer consumeQuota;
+
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;
 }

@@ -50,6 +50,11 @@ public class DownloadServiceImpl extends ServiceImpl<DownloadLogMapper,DownloadL
         if (hasDownloadedFile(userId, fileId)) {
             return true;
         }
+        // 检查是否为用户自己发布的图片
+        Picture picture = pictureService.getById(fileId);
+        if (picture != null && picture.getUserId() != null && picture.getUserId().equals(userId)) {
+            return true;
+        }
         // 否则检查剩余下载次数
         return getRemainingDownloads(userId) > 0;
     }
@@ -73,23 +78,33 @@ public class DownloadServiceImpl extends ServiceImpl<DownloadLogMapper,DownloadL
     }
 
     public void logDownload(Long userId, Long fileId) {
-        // 如果用户曾经下载过这个文件，则不记录新的下载记录，也不消耗下载次数（永久有效）
-        if (hasDownloadedFile(userId, fileId)) {
-            return;
-        }
-
         // 获取图片信息，记录 spaceId
         Picture picture = pictureService.getById(fileId);
         ThrowUtils.throwIf(picture == null, ErrorCode.NOT_FOUND_ERROR, "图片不存在");
+
         Long spaceId = picture.getSpaceId();
 
+        // 判断是否消耗下载配额
+        // 1. 如果用户曾经下载过这个文件，则不消耗配额（永久有效）
+        // 2. 如果是用户自己发布的图片，也不消耗配额
+        boolean shouldConsumeQuota = true;
+        if (hasDownloadedFile(userId, fileId)) {
+            shouldConsumeQuota = false;
+        } else if (picture.getUserId() != null && picture.getUserId().equals(userId)) {
+            shouldConsumeQuota = false;
+        }
+
+        // 始终插入下载记录，但标记是否消耗配额
         DownloadLog downloadLog = new DownloadLog();
         downloadLog.setUserId(userId);
         downloadLog.setFileId(fileId);
         downloadLog.setSpaceId(spaceId);
         downloadLog.setDownloadedAt(LocalDateTime.now());
+        downloadLog.setConsumeQuota(shouldConsumeQuota ? 1 : 0);
+
         int count = downloadLogMapper.insert(downloadLog);
-        //更新redis中的图片下载次数
+
+        // 更新redis中的图片下载次数
         if (count > 0) {
             pictureService.updateInteractionNumByRedis(fileId, PictureInteractionTypeEnum.DOWNLOAD.getKey(), 1);
         }
