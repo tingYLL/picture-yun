@@ -19,6 +19,7 @@ import com.jdjm.jdjmpicturebackend.api.aliyunai.AliYunAiApi;
 import com.jdjm.jdjmpicturebackend.api.aliyunai.model.CreateOutPaintingTaskRequest;
 import com.jdjm.jdjmpicturebackend.api.aliyunai.model.CreateOutPaintingTaskResponse;
 import com.jdjm.jdjmpicturebackend.common.PageRequest;
+import com.jdjm.jdjmpicturebackend.config.UploadProperties;
 import com.jdjm.jdjmpicturebackend.constant.CacheKeyConstant;
 import com.jdjm.jdjmpicturebackend.constant.UserConstant;
 import com.jdjm.jdjmpicturebackend.exception.BusinessException;
@@ -114,14 +115,16 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
     private AliYunAiApi aliYunAiApi;
     @Resource
     private SpaceUserAuthManager spaceUserAuthManager;
+
+    @Resource
+    private UploadProperties uploadProperties;
+
     @Value("${image.local.enable}")
     private Boolean isLocalStore;
     @Value("${server.port}")
     private String port;
     @Value("${server.servlet.context-path}")
     private String contextPath;
-    @Value("${image.upload.dir}")
-    private String uploadDir; // 注入配置的上传目录
 
     @Resource
     private RedisCache redisCache;
@@ -261,7 +264,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
             String uploadFilename = String.format("%s_%s.%s", DateUtil.formatDate(new Date()), uuid,
                     FileUtil.getSuffix(originalFilename));
              uploadPath = String.format("/%s/%s", uploadPathPrefix, uploadFilename);
-            destFile = new File(Paths.get(uploadDir, uploadPath).toString());
+            destFile = new File(Paths.get(uploadProperties.getDir(), uploadPath).toString());
 
             // 确保目录存在
             if (!destFile.getParentFile().exists()) {
@@ -1003,7 +1006,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
             relativePath = relativePath.substring(1);
         }
 
-        return Paths.get(uploadDir, relativePath.split("/"));
+        return Paths.get(uploadProperties.getDir(), relativePath.split("/"));
     }
 
     //腾讯云cos

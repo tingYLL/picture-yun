@@ -81,7 +81,13 @@ image:
   local:
     enable: true
   upload:
-    dir: D:\pictures
+    # 文件上传目录
+    # 如果不配置，默认为项目根目录下的 uploads 文件夹
+    # 支持绝对路径和相对路径，建议使用绝对路径
+    # Windows 示例: D:\pictures
+    # Linux 示例: /var/www/pictures
+    # 留空则使用默认值: {项目根目录}/uploads
+#    dir: D:\pictures
 
 ## 对象存储配置（需要从腾讯云获取）
 #cos:

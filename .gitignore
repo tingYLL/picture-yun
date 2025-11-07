@@ -36,3 +36,8 @@ build/
 application-local.yml
 application-prod.yml
 
+# 用户上传的图片文件，不应提交到版本控制
+uploads/
+# 旧的上传目录（如果存在）
+D:\pictures
+

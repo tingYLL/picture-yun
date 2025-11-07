@@ -3,6 +3,7 @@ package com.jdjm.jdjmpicturebackend.controller;
 import com.jdjm.jdjmpicturebackend.annotation.AuthCheck;
 import com.jdjm.jdjmpicturebackend.common.BaseResponse;
 import com.jdjm.jdjmpicturebackend.common.ResultUtils;
+import com.jdjm.jdjmpicturebackend.config.UploadProperties;
 import com.jdjm.jdjmpicturebackend.constant.UserConstant;
 import com.jdjm.jdjmpicturebackend.exception.BusinessException;
 import com.jdjm.jdjmpicturebackend.exception.ErrorCode;
@@ -11,7 +12,6 @@ import com.qcloud.cos.model.COSObject;
 import com.qcloud.cos.model.COSObjectInputStream;
 import com.qcloud.cos.utils.IOUtils;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import javax.annotation.Resource;
@@ -29,11 +29,11 @@ public class FileController {
     @Resource
     private CosManager cosManager;
 
+    @Resource
+    private UploadProperties uploadProperties;
+
 //    @Autowired
 //    private MinioUtil minioUtil;
-
-    @Value("${image.upload.dir}")
-    private String uploadDir; // 注入配置的上传目录
 
     @PostMapping("/upload/local")
     public String uploadImage(@RequestParam("image") MultipartFile file) {
@@ -48,7 +48,7 @@ public class FileController {
             String savedFileName = UUID.randomUUID().toString() + fileExtension;
 
             // 构建文件保存路径
-            File destFile = new File(Paths.get(uploadDir, savedFileName).toString());
+            File destFile = new File(Paths.get(uploadProperties.getDir(), savedFileName).toString());
 
             // 确保目录存在
             if (!destFile.getParentFile().exists()) {

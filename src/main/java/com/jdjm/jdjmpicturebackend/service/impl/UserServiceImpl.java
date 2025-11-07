@@ -9,6 +9,7 @@ import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.jdjm.jdjmpicturebackend.config.UploadProperties;
 import com.jdjm.jdjmpicturebackend.constant.UserConstant;
 import com.jdjm.jdjmpicturebackend.exception.BusinessException;
 import com.jdjm.jdjmpicturebackend.exception.ErrorCode;
@@ -57,8 +58,8 @@ import static com.jdjm.jdjmpicturebackend.constant.UserConstant.USER_LOGIN_STATE
 public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     implements UserService{
 
-    @Value("${image.upload.dir}")
-    private String uploadDir; // 注入配置的上传目录
+    @Resource
+    private UploadProperties uploadProperties;
 
     @Value("${server.port}")
     private String port;
@@ -338,7 +339,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
             String uploadFilename = String.format("%s_%s.%s", DateUtil.formatDate(new Date()), uuid,
                     FileUtil.getSuffix(originalFilename));
             uploadPath = String.format("/%s/%s", uploadPathPrefix, uploadFilename);
-            destFile = new File(Paths.get(uploadDir, uploadPath).toString());
+            destFile = new File(Paths.get(uploadProperties.getDir(), uploadPath).toString());
 
             // 确保目录存在
             if (!destFile.getParentFile().exists()) {
