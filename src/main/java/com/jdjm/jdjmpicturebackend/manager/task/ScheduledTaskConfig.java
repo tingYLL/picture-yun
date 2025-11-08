@@ -17,7 +17,7 @@ import java.util.function.Consumer;
  * <p>
  * 配置任务调度所需的线程池、注册表等基础设施组件
  *
- * @author Baolong 2025年03月19 13:56
+ * @author jdjm 2025年03月19 13:56
  * @version 1.0
  * @since 1.8
  */

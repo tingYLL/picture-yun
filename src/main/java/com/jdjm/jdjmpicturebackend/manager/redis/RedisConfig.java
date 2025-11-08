@@ -22,7 +22,7 @@ import org.springframework.scripting.support.ResourceScriptSource;
 /**
  * Redis 配置类
  *
- * @author Baolong 2025年03月06 22:53
+ * @author jdjm 2025年03月06 22:53
  * @version 1.0
  * @since 1.8
  */

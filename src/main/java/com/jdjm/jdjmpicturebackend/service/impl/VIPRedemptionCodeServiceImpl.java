@@ -7,7 +7,7 @@ import com.jdjm.jdjmpicturebackend.exception.ThrowUtils;
 import com.jdjm.jdjmpicturebackend.mapper.VIPRedemptionCodeMapper;
 import com.jdjm.jdjmpicturebackend.model.entity.VIPRedemptionCode;
 import com.jdjm.jdjmpicturebackend.service.VIPRedemptionCodeService;
-import com.jdjm.jdjmpicturebackend.util.RedemptionCodeGenerator;
+import com.jdjm.jdjmpicturebackend.utils.RedemptionCodeGenerator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

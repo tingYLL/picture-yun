@@ -8,10 +8,7 @@ import com.jdjm.jdjmpicturebackend.model.vo.analyze.*;
 
 import java.util.List;
 
-/**
- * @author
- * @createDate 2024-12-18 19:53:34
- */
+
 public interface SpaceAnalyzeService extends IService<Space> {
     /**
      * 获取空间使用情况分析

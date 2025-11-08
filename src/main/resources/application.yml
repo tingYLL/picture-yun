@@ -9,7 +9,7 @@ spring:
     name: jdjm-picture-backend
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/bear_picture_test
+    url: jdbc:mysql://localhost:3306/jdjm_picture
     username: root
     password: root
   #Redis配置
@@ -24,18 +24,18 @@ spring:
   # 空间图片分表
   shardingsphere:
     datasource:
-      names: bear_picture
-      bear_picture:
+      names: jdjm_picture
+      jdjm_picture:
         type: com.zaxxer.hikari.HikariDataSource
         driver-class-name: com.mysql.cj.jdbc.Driver
-        url: jdbc:mysql://localhost:3306/bear_picture
+        url: jdbc:mysql://localhost:3306/jdjm_picture
         username: root
         password: root
     rules:
       sharding:
         tables:
           picture:
-            actual-data-nodes: bear_picture.picture # 动态分表,如果是静态分表actual-data-nodes 这一项可以写成 bear_picture.picture{0..2}这种形式
+            actual-data-nodes: jdjm_picture.picture # 动态分表,如果是静态分表actual-data-nodes 这一项可以写成 jdjm_picture.picture{0..2}这种形式
             table-strategy:
               standard:
                 sharding-column: spaceId

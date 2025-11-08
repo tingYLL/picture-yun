@@ -16,12 +16,7 @@ import java.util.stream.Collectors;
 
 /**
  * MyBatisPlus 的 SFunction 工具类
- * <p>
  * 适用于 MyBatisPlus
- *
- * @author Baolong 2025年03月07 13:32
- * @version 1.0
- * @since 1.8
  */
 public class SFLambdaUtil {
 

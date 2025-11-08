@@ -114,7 +114,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         user.setUserName(userAccount);
         user.setUserRole(UserRoleEnum.USER.getValue());
         // 设置默认头像
-        user.setUserAvatar("/images/static/u=2832392520,934031951&fm=253&app=138&f=JPEG.jpg");
+        user.setUserAvatar("/images/static/defaultAvatar.jpg");
         boolean saveResult = this.save(user);
         if (!saveResult) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "注册失败，数据库错误");

@@ -5,7 +5,7 @@ import com.jdjm.jdjmpicturebackend.model.entity.User;
 import com.jdjm.jdjmpicturebackend.model.entity.VIPMembership;
 import com.jdjm.jdjmpicturebackend.model.entity.VIPRedemptionCode;
 import com.jdjm.jdjmpicturebackend.model.vo.VIPInfoVO;
-import com.jdjm.jdjmpicturebackend.util.RedemptionCodeGenerator;
+import com.jdjm.jdjmpicturebackend.utils.RedemptionCodeGenerator;
 
 public interface VIPService extends IService<VIPMembership> {
     boolean isVIP(Long userId);

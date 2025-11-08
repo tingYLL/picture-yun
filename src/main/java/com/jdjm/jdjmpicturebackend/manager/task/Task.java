@@ -7,7 +7,7 @@ package com.jdjm.jdjmpicturebackend.manager.task;
  * <p>
  * 默认将Runnable的run()方法委托给doWork()实现，简化任务定义。
  *
- * @author Baolong 2025年03月19 13:54
+ * @author jdjm 2025年03月19 13:54
  * @version 1.0
  * @since 1.8
  */

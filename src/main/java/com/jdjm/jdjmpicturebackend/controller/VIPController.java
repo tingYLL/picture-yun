@@ -2,7 +2,6 @@ package com.jdjm.jdjmpicturebackend.controller;
 
 import com.jdjm.jdjmpicturebackend.common.BaseResponse;
 import com.jdjm.jdjmpicturebackend.common.ResultUtils;
-import com.jdjm.jdjmpicturebackend.exception.BusinessException;
 import com.jdjm.jdjmpicturebackend.exception.ErrorCode;
 import com.jdjm.jdjmpicturebackend.exception.ThrowUtils;
 import com.jdjm.jdjmpicturebackend.model.dto.vip.RedeemCodeRequest;
@@ -12,14 +11,11 @@ import com.jdjm.jdjmpicturebackend.model.vo.VIPInfoVO;
 import com.jdjm.jdjmpicturebackend.service.UserService;
 import com.jdjm.jdjmpicturebackend.service.VIPRedemptionCodeService;
 import com.jdjm.jdjmpicturebackend.service.VIPService;
-import com.jdjm.jdjmpicturebackend.service.impl.VIPServiceImpl;
-import com.jdjm.jdjmpicturebackend.util.RedemptionCodeGenerator;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.jdjm.jdjmpicturebackend.utils.RedemptionCodeGenerator;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/vip")

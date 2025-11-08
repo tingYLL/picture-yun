@@ -27,7 +27,6 @@ public class GetImagePageUrlApi {
      * @return
      */
     public static String getImagePageUrl(String imageUrl) {
-        // image: https%3A%2F%2Fwww.codefather.cn%2Flogo.png
         //tn: pc
         //from: pc
         //image_source: PC_UPLOAD_URL
@@ -87,7 +86,7 @@ public class GetImagePageUrlApi {
 
     public static void main(String[] args) {
         // 测试以图搜图功能
-        String imageUrl = "https://www.codefather.cn/logo.png";
+        String imageUrl = "https://www.baidu.com";
         String searchResultUrl = getImagePageUrl(imageUrl);
         System.out.println("搜索成功，结果 URL：" + searchResultUrl);
     }

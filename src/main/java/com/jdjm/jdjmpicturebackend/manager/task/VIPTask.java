@@ -10,7 +10,7 @@ import javax.annotation.Resource;
 /**
  * VIP 定时任务类
  *
- * @author Baolong 2025年03月19 13:55
+ * @author jdjm 2025年03月19 13:55
  * @version 1.0
  * @since 1.8
  */
